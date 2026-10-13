@@ -1,0 +1,5 @@
+tests/
+tools/
+measurement/
+data/
+backup-*.zip

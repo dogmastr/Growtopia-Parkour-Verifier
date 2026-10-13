@@ -1,0 +1,43 @@
+/* Build tools, level code box, route checker and its result, touch pads. Tokens come from base.css. */
+
+/* ---- build tools: chips with the tile's picture ---- */
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.tools button { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 8px 0 6px; }
+.tools button img { display: block; width: 20px; height: 20px; border-radius: 4px; image-rendering: pixelated; }
+.tools kbd { font-size: 11px; padding: 0 4px; }
+.tools button[aria-pressed="true"] kbd { background: rgb(255 255 255 / .16); border-color: transparent; color: #fff; }
+
+.buildrow { display: grid; gap: 10px; }
+.codebox { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.codebox input { flex: 1 1 260px; min-width: 0; height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font: 12px var(--mono); }
+.codebox input:focus { outline: none; border-color: var(--edit); }
+.codebox .msg { width: 100%; font-size: 13px; color: var(--muted); }
+
+/* ---- route checker ---- */
+.ck-rate { display: grid; gap: 6px; font-size: 14px; font-weight: 500; }
+.ck-rate b { font-weight: 600; }
+.ck-rate input { width: 100%; margin: 0; accent-color: var(--accent); }
+.ck-rate small, .toggle small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.45; }
+.toggle { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.toggle input { flex: none; width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--ink); }
+
+.result { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--bg); font-size: 15px; }
+.result .ic { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--ink); font-size: 13px; font-weight: 600; }
+.result[data-state="ok"] { background: var(--accent-soft); }
+.result[data-state="ok"] .ic { background: var(--accent); color: #fff; }
+.result[data-state="bad"] { background: var(--bad-soft); }
+.result[data-state="bad"] .ic { background: var(--bad); color: #fff; }
+.result[data-state="busy"] .ic { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.result .sub { margin-top: 2px; font-size: 13px; color: var(--ink-2); }
+.result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.result .acts button { height: 32px; font-size: 13px; }
+
+/* ---- touch pads (on touch screens and narrow ones) ---- */
+.touchpad { display: none; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; user-select: none; -webkit-user-select: none; }
+.touchpad.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.touchpad button { height: 56px; border-radius: 12px; font-size: 18px; touch-action: none; }
+.touchpad button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+@media (pointer: coarse), (max-width: 640px) { .touchpad { display: grid; } }
+
+.buildrow select { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 14px; font-weight: 500; }

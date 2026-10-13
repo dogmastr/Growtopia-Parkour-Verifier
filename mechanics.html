@@ -1,0 +1,1439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mechanics · Growtopia Parkour Verifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/mechanics.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-hop" viewBox="0 0 24 24"><path d="M4 19h5v-5h5V9h6"/></symbol>
+</svg>
+
+<div class="shell">
+  <header class="apphead card">
+    <span class="mark" aria-hidden="true"><svg class="ic"><use href="#i-hop"/></svg></span>
+    <h1>Growtopia <span>Mechanics</span></h1>
+    <a class="back" href="index.html">Verifier</a>
+  </header>
+
+  <div class="mech">
+    <nav class="card tabs" aria-label="Mechanics topics">
+      <h2>Start here</h2>
+      <a href="#bounce-cancel">Bounce cancel</a>
+      <a href="#order">Which block wins</a>
+      <a href="#frame-time">63fps, Frame time and frame rate</a>
+      <h2>Player</h2>
+      <a href="#player">The player</a>
+      <a href="#gear">Gear</a>
+      <a href="#reach">How far and how high</a>
+      <a href="#ledges">Ledges and gaps</a>
+      <a href="#ceilings">Ceilings</a>
+      <h2>Blocks</h2>
+      <a href="#trampolines">Trampolines</a>
+      <a href="#lemon-jelly">Lemon Jelly Block</a>
+      <a href="#bumper">Pinball bumper</a>
+      <a href="#spikes">Spikes</a>
+      <a href="#lava">Lava</a>
+      <a href="#steam">Steam blocks</a>
+      <a href="#water">Water</a>
+      <a href="#antigravity">Antigravity field</a>
+      <a href="#low-gravity">Low gravity</a>
+      <a href="#gravity-well">Gravity Well</a>
+      <a href="#conveyor">Conveyors and wind</a>
+      <a href="#waterfall">Waterfall</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#one-way">One-Way Block</a>
+      <a href="#one-way-edge">One-Way Block edge jump</a>
+      <a href="#portals">Portals and checkpoints</a>
+      <a href="#climbing">Wall climbing</a>
+      <a href="#surfaces">Ice and slow ground</a>
+      <h2>Reference</h2>
+      <a href="#words">Words used here</a>
+      <a href="#unknown">Not known yet</a>
+    </nav>
+
+    <main class="card page">
+
+      <article class="topic" id="bounce-cancel" data-title="Bounce cancel">
+        <p class="crumb">Start here</p>
+        <h2>Bounce cancel</h2>
+        <p class="lead">A trampoline throws you up at 800 px/s. A bounce cancel is replacing that bounce with your own jump: with Double Jump, press jump during the bounce and your upward speed is set to 450 px/s, whatever is left of the 800.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes. The Mushroom and the Diving Board are in the editor (keys <kbd>M</kbd> and <kbd>B</kbd>), and the route checker tries holding and letting go on every frame, so it finds cancel timing by itself.</span></p>
+
+        <h3>The cancel</h3>
+        <ul>
+          <li>A fresh jump press during the bounce spends your Double Jump air jump. It <b>sets</b> your upward speed to <b>450 px/s</b> (it doesn't add), and the 800 is gone.</li>
+          <li>So the press makes you <b>slower</b> while you are still rising faster than 450 px/s, and gives you a fresh jump from wherever you are once you are below that. Pressed at the very top, it is a free extra jump of about 101 px.</li>
+          <li>That is how you pick your own height off a trampoline: bounce, then press when you are at the speed you want to start from.</li>
+          <li>A press on the landing frame itself can't be a ground jump, because the bounce has already taken you off the ground. With wings it spends the air jump the same way.</li>
+        </ul>
+
+        <h3>Shortening the bounce by letting go</h3>
+        <p>Without wings, or with the air jump already spent, you can still cut the rise short with the jump button:</p>
+        <ul>
+          <li><b>Hold the whole way:</b> you rise about 320 px (10 tiles) and reach the top after 0.8 s.</li>
+          <li><b>Let go straight away:</b> you rise only about 53 px (a bit under 2 tiles) and reach the top after 0.13 s.</li>
+          <li><b>Holding through the landing</b> is what gives the big bounce. If you are not holding when you land, you get the short one on its own.</li>
+          <li>You can change your mind at any moment. Let go, or press again, and the slowing-down rate switches from that frame on.</li>
+        </ul>
+
+        <figure class="figure" id="bounce-figure">
+          <h3>Height above the trampoline after you land</h3>
+          <div class="legend" id="bounce-legend"></div>
+          <div id="bounce-plot"></div>
+          <div class="tip" id="bounce-tip" hidden></div>
+          <details>
+            <summary>Show as a table</summary>
+            <div class="tablewrap"><table id="bounce-table"></table></div>
+          </details>
+        </figure>
+
+        <h3>Why it works</h3>
+        <ul>
+          <li>Landing on a trampoline gives your Double Jump air jump back, and the bounce itself doesn't touch it.</li>
+          <li>The trampoline sets your upward speed to <b>800 px/s</b> and leaves everything else alone, including whether jump is held.</li>
+          <li>So the ordinary jump rule applies on the way up. While you rise with jump held you slow down at 1000 px/s². While you rise with jump let go, 5000 more is added, so you slow down at <b>6000 px/s²</b>.</li>
+        </ul>
+        <p>Inside the frame after you stop on top of the block, things happen in this order:</p>
+        <ol>
+          <li>The ground check marks you on the ground, and Double Jump's air jump comes back.</li>
+          <li>Gravity zeroes your downward speed, because you are on the ground.</li>
+          <li>The contact test runs the trampoline: upward speed is set to 800 and you are off the ground.</li>
+          <li>Jump handling happens. A press here is not a ground jump any more.</li>
+          <li>The move happens: you rise 13 px in this same frame.</li>
+        </ol>
+        <p>The whole order of a frame is under <a href="#player">The player</a>.</p>
+
+        <h3>How high, if you let go after a while</h3>
+        <p>Held for <i>t</i> seconds and then let go, the rise is <code>800·t − 500·t² + (800 − 1000·t)² ÷ 12000</code> px, for <i>t</i> up to 0.8 s. The last column is what this page's own physics gives, with the game's <a href="#frame-time">16 ms steps</a>.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Let go after</th><th class="num">Smooth maths</th><th class="num">In tiles</th><th class="num">16 ms steps</th></tr></thead>
+            <tbody id="rise-table">
+              <tr><td>0 s (straight away)</td><td class="num">53 px</td><td class="num">1.7</td><td class="num" data-t="0"></td></tr>
+              <tr><td>0.1 s</td><td class="num">116 px</td><td class="num">3.6</td><td class="num" data-t="0.1"></td></tr>
+              <tr><td>0.2 s</td><td class="num">170 px</td><td class="num">5.3</td><td class="num" data-t="0.2"></td></tr>
+              <tr><td>0.3 s</td><td class="num">216 px</td><td class="num">6.7</td><td class="num" data-t="0.3"></td></tr>
+              <tr><td>0.4 s</td><td class="num">253 px</td><td class="num">7.9</td><td class="num" data-t="0.4"></td></tr>
+              <tr><td>0.5 s</td><td class="num">283 px</td><td class="num">8.8</td><td class="num" data-t="0.5"></td></tr>
+              <tr><td>0.6 s</td><td class="num">303 px</td><td class="num">9.5</td><td class="num" data-t="0.6"></td></tr>
+              <tr><td>0.7 s</td><td class="num">316 px</td><td class="num">9.9</td><td class="num" data-t="0.7"></td></tr>
+              <tr><td>0.8 s or more (held)</td><td class="num">320 px</td><td class="num">10.0</td><td class="num" data-t="0.8"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>For a ledge exactly 4 tiles (128 px) up, let go about 0.12 s after landing. With steps of 1/60 s instead of <a href="#frame-time">16 ms</a>, the two ends come out at about 327 px and 60 px.</p>
+
+        <h3>How far a bounce carries you</h3>
+        <p>A bounce while running at top speed, landing at the same height.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Case</th><th class="num">Rise</th><th class="num">In the air</th><th class="num">Travel</th></tr></thead>
+            <tbody>
+              <tr><td>Jump held</td><td class="num">325 px (10.2 tiles)</td><td class="num">1.84 s</td><td class="num">442 px (13.8 tiles)</td></tr>
+              <tr><td>Let go at once</td><td class="num">59 px</td><td class="num">0.46 s</td><td class="num">111 px</td></tr>
+              <tr><td>Held, then the air jump at the very top</td><td class="num">430 px (13.4 tiles)</td><td class="num">2.59 s</td><td class="num">623 px</td></tr>
+              <tr><td>Held, 3 speed items (437.5 px/s)</td><td class="num">325 px</td><td class="num">1.84 s</td><td class="num">787 px (24.6 tiles)</td></tr>
+              <tr><td>Held, High Jump (gravity 713)</td><td class="num">454 px (14.2 tiles)</td><td class="num">2.58 s</td><td class="num">619 px</td></tr>
+              <tr><td>Held, Mars weather</td><td class="num">432 px (13.5 tiles)</td><td class="num">2.45 s</td><td class="num">588 px</td></tr>
+              <tr><td>Held, Antigravity Generator on</td><td class="num">859 px (26.8 tiles)</td><td class="num">4.85 s</td><td class="num">1165 px</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Mars weather and the Antigravity Generator are under <a href="#low-gravity">Low gravity</a>. The verifier doesn't have those two yet.</p>
+
+        <h3>Good to know</h3>
+        <ul>
+          <li>Your <b>sideways speed</b> isn't touched, so you keep running through the bounce.</li>
+          <li>A press on the landing frame itself can't be a ground jump, because the bounce has already taken you off the ground.</li>
+          <li>The <b>pinball bumper</b> is different: it clears the held-jump state, so its launches are short until you press again.</li>
+          <li>Gliding with a parasol only changes the way down.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="frame-time" data-title="63fps, Frame time and frame rate">
+        <p class="crumb">Start here</p>
+        <h2>63fps, Frame time and frame rate</h2>
+        <p class="lead">The game has no fixed step. One frame on screen is one step of movement, and that step is a whole number of milliseconds: 16 ms every frame when the counter shows 63 fps, 17 ms every frame when it shows 59, and a mix of the two in between.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for a steady 16 ms and a steady 17 ms. The Frame length buttons in its Constants panel pick one (it starts at 16 ms), and the game there, the route checker and its replays all step at it. The mix of 16 and 17, any other frame length and the 100 ms cap: not yet. The numbers on the rest of this page are for 16 ms.</span></p>
+
+        <h3>What each FPS reading means</h3>
+        <p><b>Where this comes from:</b> simulated from the timer rules below.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>FPS shown</th><th>Real time between frames</th><th>Physics step each frame</th></tr></thead>
+            <tbody>
+              <tr><td>59</td><td>17 ms</td><td>17 ms every frame</td></tr>
+              <tr><td>60 or 61</td><td>About 16.67 ms (60 Hz screen sync)</td><td>16 and 17 mixed, in the repeating pattern 16, 17, 17, 17, 17, 16</td></tr>
+              <tr><td>62</td><td>Between 16 and 16.4 ms</td><td>Mostly 16, with an occasional 17</td></tr>
+              <tr><td>63</td><td>16 ms (really 62.5 per second)</td><td>16 ms every frame</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>The FPS counter counts updates until more than 1000 ms have passed. So it reads a little high, and 1000 ÷ (FPS shown) is not the frame time.</li>
+          <li>The shortest input is one frame. That frame is worth 16 ms or 17 ms of movement, depending on the row above.</li>
+          <li>With a steady 16 ms or a steady 17 ms, a held jump rises 104 px. It lasts 59 frames at 16 ms and 56 frames at 17 ms.</li>
+          <li>Higher frame rates give shorter steps: at 120 Hz with no limit, 8 and 9 ms mixed. This only happens if the 60 fps limit is not working.</li>
+        </ul>
+
+        <h3>How the game times a frame</h3>
+        <p><b>Where this comes from:</b> read from the Android game code.</p>
+        <ul>
+          <li>There is no fixed physics step. One update is one frame.</li>
+          <li>The physics uses the frame time ÷ 1000 as the time for that frame. It is always a whole number of milliseconds. 16.67 never happens.</li>
+          <li>A single frame is capped at 100 ms.</li>
+          <li>The game asks for a 60 fps limit. The waiting itself is done outside this code.</li>
+        </ul>
+        <p>Each frame, the timer does this:</p>
+        <ol>
+          <li>It reads the system clock, in whole milliseconds.</li>
+          <li>It takes the time since the last frame. If that is more than 100 ms, it is cut to 100.</li>
+          <li>It averages the last 8 of those times and rounds the average down to a whole millisecond. That is the <b>frame time</b>.</li>
+          <li>It compares this frame's own time with the frame time. If it was 1, 2, 3 or 4 ms longer, that leftover goes into the next frame. Any other difference is dropped.</li>
+        </ol>
+
+        <h3>Why 63 fps appears after the game has been open a long time</h3>
+        <p><b>Where this comes from:</b> a likely explanation, not confirmed. It is read from the public Proton SDK engine source, which Growtopia is built on (<code>shared/win/app/main.cpp</code> and <code>shared/win/WinUtils.cpp</code>).</p>
+        <ul>
+          <li>The public Windows loop keeps the time of the next frame in a 32-bit float: <code>fpsTimer = float(now) + 1000.0f / 60</code>. It waits while <code>fpsTimer &gt; now</code>. <code>now</code> is whole milliseconds since the game started.</li>
+          <li>A 32-bit float holds whole numbers exactly only up to 2<sup>24</sup> = 16,777,216. Past that it can only hold every 2nd number, then every 4th, and so on, doubling each time the number doubles.</li>
+          <li>So the 16.67 ms wait gets rounded to whatever step the float can still hold.</li>
+        </ul>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Game open for</th><th>Float step</th><th>16.67 rounds to</th><th>Frame time, sync off</th><th>FPS shown, sync off</th><th>With 60 Hz sync on</th></tr></thead>
+            <tbody>
+              <tr><td>Under 4 h 39 m 37 s (2<sup>24</sup> ms)</td><td>1 ms or finer</td><td>First whole ms at or past it: 17</td><td>17 ms</td><td>59</td><td>About 59, with an occasional doubled frame</td></tr>
+              <tr><td>4 h 39 m 37 s to 74 h 34 m (2<sup>28</sup> ms)</td><td>2, 4, 8, 16 ms</td><td>16</td><td>16 ms</td><td>63</td><td>Steady 60</td></tr>
+              <tr><td>74 h 34 m to 149 h 8 m (2<sup>29</sup> ms)</td><td>32 ms</td><td>32</td><td>32 ms</td><td>About 31</td><td>About 31</td></tr>
+              <tr><td>149 h 8 m to 298 h</td><td>64 ms</td><td>0, and the current time itself is rounded too</td><td>About 32 ms with no wait, then a stall of up to 32 ms, every 64 ms</td><td>No steady value</td><td>Steady 60</td></tr>
+              <tr><td>Over 298 h</td><td>128 ms</td><td>Same, with stalls of up to 64 ms</td><td>Uneven</td><td>No steady value</td><td>About 45, uneven</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>The steps at 9 h 19 m, 18 h 38 m and 37 h 17 m change nothing, because 16.67 still rounds to 16.</li>
+          <li>On a 60 Hz screen with sync on, the 16 ms phase shows as 60, because the screen holds frames to 16.67 ms. 63 shows when sync is off or the screen is faster than 60 Hz.</li>
+          <li>The sync-off rows assume each frame takes 1 ms of work.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="trampolines" data-title="Trampolines">
+        <p class="crumb">Blocks</p>
+        <h2>Trampolines</h2>
+        <p class="lead">Blocks that throw you up at 800 px/s when you land on them. The Mushroom is the plain one.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> the Mushroom and the Diving Board. The others follow the same rule and could be added as tiles. The Steam Launcher and trampolines on fire: not yet.</span></p>
+
+        <h3>The rule</h3>
+        <p class="rule">If gravity is on, you are not moving up, and your feet are at or above the top of the block: your upward speed becomes <b>800 px/s</b> and you are no longer on the ground.</p>
+        <p>The speed is set, not added, so how fast you were falling doesn't matter.</p>
+
+        <h3>What the bounce leaves alone</h3>
+        <p>Your sideways speed, whether jump is held, the ledge grace frame, slippery, your stored air jump, and knockback. Only your upward speed and "on the ground" change. That is why <a href="#bounce-cancel">bounce cancel</a> works.</p>
+
+        <h3>When it is checked</h3>
+        <ul>
+          <li>In the contact test, which runs after gravity and before jump handling and the move.</li>
+          <li>Only the up-and-down test counts. It looks at your box moved down 1 px when you are standing, or down by this frame's fall (at most 1 px). If that box overlaps the 32 × 32 tile at all, even by 1 px of width, the rule runs.</li>
+          <li>From the side a solid trampoline is an ordinary wall. There is no bounce.</li>
+          <li>Once one trampoline has fired, the game stops looking at other blocks in that test. That includes a spike to its right: see <a href="#order">Which block wins</a>.</li>
+        </ul>
+
+        <h3>The frames around a landing</h3>
+        <ol>
+          <li><b>Frame N:</b> your move ends with you stopped right on top of the block.</li>
+          <li><b>Frame N+1:</b> the ground check marks you on the ground (and gives the air jump back), gravity zeroes your downward speed, the contact test bounces you (−800, off the ground), then jump handling and the move happen.</li>
+          <li>So a jump press on frame N+1 can't be a ground jump. It only sets "jump held".</li>
+          <li>The air jump from that frame is yours any time after the bounce. It sets your upward speed to 450, replacing what is left of the 800.</li>
+        </ol>
+
+        <h3>Which blocks</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Kind</th><th>Blocks</th><th>Solid how</th></tr></thead>
+            <tbody>
+              <tr><td>Solid trampolines</td><td>Mushroom (194), Pinball Sproinger (624), Bouncy Bunny (2516), Bouncy Balloon (4878), Cherry, Blueberry and Cranberry Jelly Blocks (5384, 5388, 7442), Bouncy Castle Block (11776), Bouncy Wall (13622), the Pillow and Ladybug Trampolines, and others (the report's section 7.3 has the full list).</td><td>Like dirt: no side lets you through.</td></tr>
+              <tr><td>Platform trampolines</td><td>Diving Board (1774), the Awnings (4392 to 4400, 12536, 12538).</td><td>Only from above. You pass through from below and from the sides.</td></tr>
+              <tr><td>Not this rule</td><td>Lemon Jelly Block (action type 108), pinball bumpers (action type 24).</td><td>See below, and the Pinball bumper topic.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The first two groups are both action type 7 in the item list. They differ only in collision kind.</p>
+        <ul>
+          <li><b>Steam Launcher (3498)</b> follows the trampoline rule only while it is switched on. After it bounces you, the game switches it off and tells the server. So it gives one bounce per switch-on. See <a href="#steam">Steam blocks</a>.</li>
+          <li><b>A trampoline that is on fire</b> is a pain block instead: it hurts like <a href="#lava">lava</a>. For a player who is immune to pain blocks it is a trampoline again.</li>
+        </ul>
+
+        <h3>Not the same rule</h3>
+        <ul>
+          <li><b>Lemon Jelly Block</b> (action type 108) bounces by how fast you fall, from 531 to 1200 px/s. The formula is under <a href="#lemon-jelly">Lemon Jelly Block</a>.</li>
+          <li><b>Pinball bumpers</b> (action type 24) launch you straight away from their centre at 500 px/s and clear the held-jump state.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="lemon-jelly" data-title="Lemon Jelly Block">
+        <p class="crumb">Blocks</p>
+        <h2>Lemon Jelly Block</h2>
+        <p class="lead">The Lemon Jelly Block (5392) bounces you by how fast you fall onto it: the faster the fall, the stronger the bounce, from 531 to 1200 px/s.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>When it bounces</h3>
+        <p>The same landing condition as a <a href="#trampolines">trampoline</a>: gravity on, not rising, feet at or above its top.</p>
+
+        <h3>How strong</h3>
+        <ul>
+          <li><code>r = (fall speed ÷ 400)²</code></li>
+          <li>Your upward speed becomes <b>1200 × r</b>, but never less than <b>531.25</b>. So 531 to 1200 px/s.</li>
+          <li>The floor of 531.25 applies for fall speeds up to about 266 px/s (about 35 px of fall).</li>
+        </ul>
+
+        <h3>The rise afterwards</h3>
+        <ul>
+          <li>While you rise, gravity is multiplied by (1 − boost).</li>
+          <li>The boost starts at r and is multiplied by 0.5625 every frame.</li>
+          <li>It ends on the first frame you are no longer rising.</li>
+        </ul>
+
+        <h3>Not known</h3>
+        <p>Which stored fall speed the block reads. It is assumed to be your speed just before landing.</p>
+      </article>
+
+      <article class="topic" id="bumper" data-title="Pinball bumper">
+        <p class="crumb">Blocks</p>
+        <h2>Pinball bumper</h2>
+        <p class="lead">A solid block that bats you away from its centre at a fixed 500 px/s. Unlike a trampoline, it also makes the game forget you are holding jump.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for the solid bumper. The Bouncy Turret and the fire flag: not yet.</span></p>
+
+        <h3>What it does</h3>
+        <p class="rule">Your velocity is replaced by <b>500 px/s</b> pointing from the block's centre to the centre of your box. Your old speed is thrown away. You become slippery, and you are taken off the ground, the ledge grace frame is cleared, and jump held is cleared.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Where you hit it</th><th class="num">Launch (sideways, up/down) px/s</th></tr></thead>
+            <tbody>
+              <tr><td>Top, in the middle</td><td class="num">(0, −500)</td></tr>
+              <tr><td>Top, 10 px off centre</td><td class="num">(±154, −476)</td></tr>
+              <tr><td>Top, at the edge (25 px off)</td><td class="num">(±314, −389)</td></tr>
+              <tr><td>Side, standing on the same row</td><td class="num">(±500, +19)</td></tr>
+              <tr><td>Bottom, in the middle</td><td class="num">(0, +500), cut to the 400 fall cap next frame</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Minus is up. You move with the new speed in the same frame it fires.</p>
+
+        <h3>After the launch</h3>
+        <ul>
+          <li><b>Upward launches are short.</b> Jump held is cleared, so the jump-cut gravity (6000 px/s²) applies even if your finger is still on the key. A straight-up launch rises only about 21 px.</li>
+          <li><b>Pressing jump again changes that.</b> A fresh press sets jump held again, so gravity drops to 1000 and the same launch can reach about 125 px. With Double Jump the press spends your air jump instead and sets you to −450.</li>
+          <li><b>Sideways speed is kept.</b> While you are slippery there is no friction, so 500 px/s lasts until you land. Steering is 15% strength while you rise and full strength while you fall, and only below your normal top speed.</li>
+          <li><b>Walls bounce you.</b> Hitting a wall while slippery reverses you at 70% of your speed.</li>
+          <li><b>Landing ends it.</b> The ground check works slippery out from the block you land on, so friction comes back unless it is ice.</li>
+          <li><b>Ground-level side hits:</b> you are back on the ground one frame later, so friction returns straight away. With no key held you slide about 104 px.</li>
+        </ul>
+
+        <h3>When it fires</h3>
+        <ul>
+          <li>Each frame, before you move, the game tests your box moved sideways by this frame's run, then moved up or down by this frame's rise or fall. A bumper overlapping either test fires.</li>
+          <li>The downward test reaches only 1 px, so a top hit fires the frame after you land on it.</li>
+          <li>The sideways and upward tests reach a whole frame of movement, so they fire about 4 px early at walking speed and about 7 px early on a jump from below.</li>
+          <li>Standing still against its side does nothing. You have to be moving into it.</li>
+          <li>There is no cooldown on the physics (only the sound has one, 150 ms).</li>
+          <li>It ends the contact check, so a spike to its right never gets a turn. See <a href="#order">Which block wins</a>.</li>
+        </ul>
+
+        <h3>In water</h3>
+        <p>The 500 px/s sideways speed survives, because slippery blocks friction. A downward launch is cut to 120 px/s at once, and an upward one rises about 69 px.</p>
+
+        <h3>Which blocks</h3>
+        <p><b>Solid:</b> Pinball Bumper (526), Lime Jelly Block (5386), Orange Jelly Block (5390), HyperTech Multi-Jet Energy Pulser (7160) and White Grape Jelly Block (7440). <b>Platform:</b> the Bouncy Turret (13624), which you can pass through from below and from the sides.</p>
+
+        <h3>The Bouncy Turret</h3>
+        <ul>
+          <li>It is a platform, so your box can be inside it.</li>
+          <li>Both contact checks run every frame, even when you are not moving, and the bumper rule has no direction condition.</li>
+          <li>So it fires every frame your box overlaps it.</li>
+        </ul>
+
+        <h3>The fire flag</h3>
+        <p>If the bumper's tile has tile flag bit 12 set (TILE_FLAG_ON_FIRE), it hurts like <a href="#lava">lava</a> instead. For a player who is immune to pain blocks, a burning bumper is a bumper again.</p>
+      </article>
+
+      <article class="topic" id="spikes" data-title="Spikes">
+        <p class="crumb">Blocks</p>
+        <h2>Spikes</h2>
+        <p class="lead">Death Spikes kill the moment the game's contact test sees them. The whole 32 × 32 square counts, whatever the artwork shows.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, as one Spike tile that is always deadly. Blocks that are deadly only while switched on, and Spikey Leaves: not yet.</span></p>
+
+        <h3>What that means in practice</h3>
+        <ul>
+          <li><b>Standing on a block next to spikes:</b> you die if even 1 px of your box overlaps the spike's column. The 1 px downward test overlaps the spike's top.</li>
+          <li><b>Standing right up against the side of spikes is safe.</b> You die on the first frame whose sideways movement rounds to 1 px or more into them.</li>
+          <li>Landing on spikes, jumping up into them and running into their side all kill the same way.</li>
+          <li><b>A trampoline or a bumper to the left of a spike gets its turn first</b> and saves you, even with most of your box over the spike. One to the right doesn't. See <a href="#order">Which block wins</a>.</li>
+        </ul>
+
+        <h3>What counts as touching</h3>
+        <ul>
+          <li>Each frame the game works out where your box would be after this frame's movement. If that box overlaps the spike's square by at least 1 px, you die, that frame.</li>
+          <li>Edges that only touch don't count.</li>
+        </ul>
+
+        <h3>Dying</h3>
+        <p>The game only sends a respawn request that names the block. The server decides where and when you come back.</p>
+
+        <h3>At a checkpoint</h3>
+        <p>In this verifier you appear with your head at the top of the checkpoint's tile, so your feet are 2 px above whatever is below. A spike right under a checkpoint therefore doesn't kill you on the first frame.</p>
+
+        <h3>Which blocks</h3>
+        <p><b>Always deadly (29 blocks):</b> Death Spikes (162), Venus Guytrap (454), Great White Shark (1520), Lazy Cobra (1706), Hanging Guytrap (1870), Deadly Spider (1990), Twisted Spikes (2008), Icicles (2226), Crystal Spikes (2276), Stalagmite (3568), Stalactite (3570), Bone Spikes (3748), Purple Devourer Plant (4100), Blue Devourer Plant (4102), Buzzsaw (4158), Massive Fang (4342), Hanging Snake (4800), Demon Crystal (5274), Egg Shell Spikes (5978), The Varlaak (6410), Electrical Power Cube (6976), Naval Mine (6994), Jade Spikes (7048), Bountiful Bamboo Spikes (8688), Prince of Persia: Cave Spikes (11600), Prince of Persia: Palace Spikes (11606), BP Water (12254), Rayman - Dream Forest Spikes (13208), Spikey Leaves (16204).</p>
+        <p><b>Deadly only while switched on (11 blocks):</b> Evil Eye (1226), Steam Spikes (3772), Angry Adventure Gorilla (4712), Deathtrap Wall (6154), Suit of Armor (6172), Starship Airlock (6398), the two Fleshy and two Verdant Googly-Woogly eyes and teeth (8348, 8350, 8806, 8808), Prickly Pineapple (8528). These are also solid only while switched on. While off you walk through them.</p>
+        <p>Death Spikes are also full blocks (collision kind 1): they stop you like dirt. The blocks that are deadly only while switched on stop you only then, and Spikey Leaves is a platform.</p>
+        <p>A player with the "immune to deadly blocks" flag isn't affected.</p>
+
+        <h3>Spikey Leaves</h3>
+        <p>The item list marks Spikey Leaves (16204) as deadly and as a platform. By the code it would then kill from below and from the sides too, because the contact test uses the whole square.</p>
+      </article>
+
+      <article class="topic" id="lava" data-title="Lava">
+        <p class="crumb">Blocks</p>
+        <h2>Lava and other pain blocks</h2>
+        <p class="lead">Lava doesn't simply kill you the way spikes do. It throws you away from it and puts you in knockback, and enough hits in a row kill you.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>From above or below</h3>
+        <ul>
+          <li>If gravity is off, your upward speed becomes 50 px/s.</li>
+          <li>Falling or standing: your upward speed becomes <b>800 px/s</b>.</li>
+          <li>Rising (you jumped up into it): your vertical speed is reversed, so you are sent back down at the same speed.</li>
+          <li>You are off the ground.</li>
+          <li>If you weren't moving sideways, you are given a tiny push the way you face. Then your sideways speed is made <b>at least 300 px/s</b>, keeping its direction.</li>
+          <li>You are in knockback.</li>
+        </ul>
+
+        <h3>From the side</h3>
+        <p>Your sideways speed is reversed, and unless you are already in knockback it is made at least 300 px/s. Nothing else changes: not your vertical speed, not whether you are on the ground, not knockback. A side hit on another pain block while in knockback only flips your speed, with no 300 minimum.</p>
+
+        <h3>Knockback</h3>
+        <p>The bounce is only about 2 blocks high and 3 blocks long.</p>
+        <p>Only an up-or-down hit starts it. It ends when the ground check finds ground. While it lasts:</p>
+        <ul>
+          <li><b>Gravity is much stronger.</b> Rising with jump held: 4250 extra. Rising with jump let go: 5000 extra. Falling: 4250 extra. The fall cap stays 400.</li>
+          <li>Steering is only 15% as strong, and nothing slows you down (no friction).</li>
+          <li>A normal wall barely bounces you: your speed × −0.01.</li>
+        </ul>
+
+        <h3>Dying</h3>
+        <p>The client doesn't simulate damage. It reports each hit, and the server decides. A player dies after making contact with lava <b>5 times in a row within 5 seconds</b>, or <b>10 times</b> with the Fireproof mod. Bouncing on a lava floor takes 21 to 23 frames a time (about a third of a second), so the 5th bounce kills.</p>
+
+        <h3>The numbers</h3>
+        <p>Running onto a long lava floor at default gravity (1000 px/s²).</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Hit</th><th class="num">Rise</th><th class="num">Frames to the next hit</th><th class="num">Travel</th></tr></thead>
+            <tbody>
+              <tr><td>From above, jump not held</td><td class="num">59 px</td><td class="num">21</td><td class="num">101 px</td></tr>
+              <tr><td>From above, jump held since before</td><td class="num">66 px</td><td class="num">23</td><td class="num">110 px</td></tr>
+              <tr><td>From the side, on the ground</td><td class="num" colspan="3">You stay grounded at 300 px/s or more. With no key held, friction (1200) stops you in 37.5 px.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>When it hits</h3>
+        <ul>
+          <li>In the contact test, before the jump and the move, in both the sideways and the up-and-down check.</li>
+          <li>Top, bottom and sides all count. There is no direction or position condition.</li>
+          <li>A pain hit ends the check, and blocks are visited left to right. So a pain block left of a trampoline wins, and a trampoline left of a pain block wins. See <a href="#order">Which block wins</a>.</li>
+        </ul>
+        <p>A pain block ends the contact check too, so when lava shares your feet with another block, the one further left wins.</p>
+
+        <h3>On a lava floor</h3>
+        <ol>
+          <li><b>Frame N:</b> your move ends with you stopped right on the lava.</li>
+          <li><b>Frame N+1:</b> the ground check marks you on the ground, ends knockback and gives the air jump back. You get one frame of normal friction and steering. Then the contact test hits the lava, then jump handling, then the move.</li>
+          <li>A jump press on frame N+1 can't be a ground jump, because you are already off the ground. Only a Double Jump air jump works, and it sets your upward speed to 450.</li>
+        </ol>
+
+        <h3>Lava cancel</h3>
+        <p>With Double Jump, the ground check on the hit frame gives the air jump back, and a fresh press spends it. Your upward speed is then <b>set to 450</b> instead of the knockback's 800, under knockback gravity.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Press</th><th class="num">Rise</th><th class="num">Frames to the next hit</th><th class="num">Travel</th></tr></thead>
+            <tbody>
+              <tr><td>None, jump not held</td><td class="num">59 px</td><td class="num">21</td><td class="num">101 px</td></tr>
+              <tr><td>None, jump held since before</td><td class="num">66 px</td><td class="num">23</td><td class="num">110 px</td></tr>
+              <tr><td>Fresh press on the hit frame, kept held</td><td class="num">22 px</td><td class="num">12</td><td class="num">57 px</td></tr>
+              <tr><td>Fresh press on the hit frame, let go next frame</td><td class="num">20 px</td><td class="num">11</td><td class="num">53 px</td></tr>
+              <tr><td>Press 1 frame after the hit</td><td class="num">35 px</td><td class="num">15</td><td class="num">72 px</td></tr>
+              <tr><td>2 frames after</td><td class="num">46 px</td><td class="num">18</td><td class="num">86 px</td></tr>
+              <tr><td>3 frames after</td><td class="num">56 px</td><td class="num">21</td><td class="num">101 px</td></tr>
+              <tr><td>4 frames after</td><td class="num">64 px</td><td class="num">23</td><td class="num">110 px</td></tr>
+              <tr><td>6 frames after</td><td class="num">76 px</td><td class="num">27</td><td class="num">129 px</td></tr>
+              <tr><td>8 frames after</td><td class="num">81 px</td><td class="num">30</td><td class="num">144 px</td></tr>
+              <tr><td>10 frames after</td><td class="num">81 px</td><td class="num">31</td><td class="num">149 px</td></tr>
+              <tr><td>12 frames after</td><td class="num">75 px</td><td class="num">32</td><td class="num">153 px</td></tr>
+              <tr><td>Same press without Double Jump (it only sets jump held)</td><td class="num">67 px</td><td class="num">23</td><td class="num">110 px</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>Every hop is still a hit.</li>
+          <li>A press on the hit frame keeps you low (22 px) but gives more hits per distance.</li>
+          <li>A press 8 to 12 frames after the hit gives the longest hop, about 144 to 153 px per hit.</li>
+        </ul>
+
+        <h3>A wall above lava</h3>
+        <p>With a plain wall above lava in the same column, the sideways check takes the upper block first. The wall sets your sideways speed to 0. Then the lava sees a speed of 0 and sets it to 300 px/s to the right. So the push is to the right, whichever side you came from.</p>
+
+        <h3>Blocks you can overlap</h3>
+        <p>Fire on a non-solid tile, the Atomic Fireball (3764), the Saguaro Cactus (8326), the Barbed Wire Barrier (8980) and the Steam Vent (3284) can be overlapped. While your box is inside one, both checks fire every frame, sideways first and then up and down. With no sideways speed, the sideways one gives you +300 px/s.</p>
+
+        <h3>Which blocks</h3>
+        <p>Lava (4), Lava Cube (1630), Hot Fudge (14906) and others are action type 16. Cactus (330) and Toxic Waste (778) are action type 25, and Acid (726) is action type 136. All three behave the same. Any tile with the fire flag counts too, even an empty one, and so do Steam Vents and Storm Clouds while they are switched on. A player with the "immune to pain blocks" flag skips all of it, and lava is then just a plain solid block.</p>
+        <p>By the code, a bumper or a trampoline that is on fire hurts like lava.</p>
+
+        <h3>Not known</h3>
+        <ul>
+          <li>How fast health comes back. The server decides.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="steam" data-title="Steam blocks">
+        <p class="crumb">Blocks</p>
+        <h2>Steam blocks</h2>
+        <p class="lead">Six steam blocks act on the player. Most of them change with whether they are switched on, and the server decides that.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>What each one does</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Block</th><th>What it does to you</th></tr></thead>
+            <tbody>
+              <tr><td>Steam Stomper (3270)</td><td>Not solid. If the middle of your body is in it, it is ready, and you are falling faster than 300 px/s: your upward speed is set to 225 and a request goes to the server.</td></tr>
+              <tr><td>Steam Launcher (3498)</td><td>A <a href="#trampolines">trampoline</a> while switched on. One bounce per switch-on.</td></tr>
+              <tr><td>Steam Vent (3284)</td><td>Not solid. A <a href="#lava">pain block</a> while switched on. Your box can be inside it, so it hits every frame.</td></tr>
+              <tr><td>Steam Spikes (3772)</td><td>Deadly and solid while switched on. Passable while off.</td></tr>
+              <tr><td>Steam Door (3286)</td><td>Solid while switched off.</td></tr>
+              <tr><td>Steam Revolver (3496)</td><td>Sends a request when the middle of your body enters while you are moving. It does not change your speed.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Good to know</h3>
+        <ul>
+          <li><b>"Ready"</b> for the Stomper and the Revolver means not cooling down and not damaged by punching. The length of the cooldown is not known.</li>
+          <li>From a standstill you pass 300 px/s after 19 frames and about 49 px of fall. In water the fall cap is 120, so the Stomper cannot fire there.</li>
+          <li>The Stomper's 225 rises 26 px with jump held and 5 px let go.</li>
+          <li>What switches these blocks on and off is decided by the server.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="order" data-title="Which block wins">
+        <p class="crumb">Start here</p>
+        <h2>When blocks sit side by side</h2>
+        <p class="lead">When your box is over two different blocks at once, the game doesn't weigh them. It looks at them one at a time, from the left, and the first one that does something ends the check.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, for spikes, bumpers and trampolines. Lava: not yet.</span></p>
+
+        <h3>A trampoline next to a spike</h3>
+        <p>Say the trampoline sits at 0 to 32 px and the spike right beside it at 32 to 64 px, and your box is 20 px wide:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Box's left edge</th><th>Over the trampoline</th><th>Over the spike</th><th>What happens</th></tr></thead>
+            <tbody>
+              <tr><td>12 px or less</td><td>all 20 px</td><td>none</td><td>Bounce</td></tr>
+              <tr><td>13 to 31 px</td><td>19 px down to 1 px</td><td>1 px up to 19 px</td><td>Bounce, no death</td></tr>
+              <tr><td>32 px or more</td><td>none</td><td>all 20 px</td><td>Death</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>So as long as at least 1 px of your box is still over the trampoline, you bounce and you live. The spike on its right never gets a turn.</p>
+
+        <h3>The mirror case is different</h3>
+        <p>With the spike on the left and the trampoline on the right, the spike is first in line and kills you, even with 19 px of your box over the trampoline. A deadly block doesn't end the check, but you are already dead by the time the game would reach the trampoline.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Box's left edge (spike at 0 to 32 px)</th><th>Over the spike</th><th>Over the trampoline</th><th>What happens</th></tr></thead>
+            <tbody>
+              <tr><td>12 px or less</td><td>all 20 px</td><td>none</td><td>Death</td></tr>
+              <tr><td>13 to 31 px</td><td>19 px down to 1 px</td><td>1 px up to 19 px</td><td>Death</td></tr>
+              <tr><td>32 px or more</td><td>none</td><td>all 20 px</td><td>Bounce</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>How the check goes</h3>
+        <ol>
+          <li>The game lists every block your box overlaps in the contact test (at least 1 px of overlap each).</li>
+          <li>It goes through the list <b>column by column, from left to right</b>. Inside one column the upper block goes first.</li>
+          <li>Each block gets its turn. A <b>spike</b> kills you, so nothing after it matters. A <b>trampoline</b> bounces you, a <b>bumper</b> throws you and a <b>pain block</b> (lava) knocks you back. Each of those counts as handled and <b>ends the check</b>: the blocks after it never get a turn.</li>
+          <li>The bounce or the throw puts you in the air, so on the next frame you aren't touching either block.</li>
+        </ol>
+        <p>In the downward check, plain blocks like dirt do nothing, so they don't take a turn.</p>
+
+        <h3>Two lists, every frame</h3>
+        <ul>
+          <li>The sideways check and the up-and-down check are two separate lists. The sideways one goes first.</li>
+          <li>Both run every frame, even if you did not move.</li>
+          <li><b>A plain wall takes its turn without ending the check.</b> It sets your sideways speed to 0 (on slippery ground it reverses it at 70%, in knockback at 1%), and the check goes on to the next block.</li>
+        </ul>
+
+        <h3>Other pairs</h3>
+        <ul>
+          <li><b>Lava and a trampoline:</b> lava also ends the check, so whichever of the two is further left wins.</li>
+          <li><b>A bumper and a spike:</b> a bumper ends the check too. A bumper on the left throws you before the spike is looked at. A spike on the left kills you.</li>
+          <li><b>Sideways:</b> the sideways check is its own list and works the same way. It is separate from the downward one, so each stops at its own first handled block.</li>
+          <li><b>A wall above lava, in the same column:</b> in the sideways check the wall is the upper block, so it goes first and sets your sideways speed to 0. Then the lava sees a speed of 0 and sets it to 300 px/s to the right. So the push is to the right, whichever side you came from.</li>
+        </ul>
+
+        <h3>Trying it in the game</h3>
+        <ol>
+          <li>Put a Mushroom and a spike side by side on flat ground, with the Mushroom on the left.</li>
+          <li>Drop onto them so that most of your box is over the Mushroom and a few pixels are over the spike. The code says you bounce.</li>
+          <li>Swap them, and drop on the same way. The code says you die.</li>
+        </ol>
+        <p>The verifier's Mushroom, spike and pinball tiles follow this rule, so you can set the same thing up in Build.</p>
+
+        <p class="note">Left to right, and top to bottom inside a column, is read from the code.</p>
+      </article>
+
+      <article class="topic" id="water" data-title="Water">
+        <p class="crumb">Blocks</p>
+        <h2>Water</h2>
+        <p class="lead">Water isn't a block. It is a flag on a tile, so a tile can be a block and water at once, and you pass through it.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, with float items and floaties as gear. Mud and glue aren't there, so nothing stacks with the water speed yet.</span></p>
+
+        <h3>When you count as in water</h3>
+        <p>Only the middle point of your box matters. You are in water while that point is in a water tile, which is when you are about half under. The game goes back to normal the first frame it is out.</p>
+
+        <h3>Up and down</h3>
+        <ul>
+          <li>Gravity and the fall cap are 0.3 times as much: 300 px/s² when sinking, and a fall cap of 120 px/s that you reach after 0.4 s and 24 px.</li>
+          <li>Entering fast, your fall speed is cut to 120 on the first frame. Upward speed isn't capped.</li>
+          <li>A jump is 0.6 times as strong (−270 px/s). You can jump from the bottom, or in open water any time you are sinking. So swimming up is: jump, wait until you start sinking, jump again.</li>
+          <li>Held, one jump rises about 121 px over 0.9 s, a bit higher than a jump on land. Let go and it is about 20 px.</li>
+          <li>The parasol and gliding are off in water.</li>
+        </ul>
+
+        <h3>Jumping into water from dry ground</h3>
+        <ul>
+          <li>A jump from a dry tile, with water starting one tile up, is a full 450 jump under 0.3 gravity: it rises <b>308 px</b>. Started in water: 123 px. On land: 104 px.</li>
+          <li>A trampoline bounce with the middle of your body in water rises 1072 px, against 325 px dry.</li>
+          <li>The jump's strength is decided on the frame of the press, from whether the middle of your body is in water then.</li>
+          <li>Water gravity applies on every frame the middle of your body is in water.</li>
+        </ul>
+        <p>In <a href="#frame-time">16 ms frames</a> a jump comes out a little higher than the smooth maths says: 123 px against 121 in water, 104 against 101 on land.</p>
+
+        <h3>Sideways</h3>
+        <ul>
+          <li>Top speed becomes the water speed (usually 125 px/s). Acceleration and friction are unchanged.</li>
+          <li>Top speed stacks: water sets the base to the water speed, then mud multiplies it by 0.6 and glue by 0.5. See <a href="#surfaces">Ice and slow ground</a>.</li>
+          <li>Entering at 250, friction brings you down to 125 in about 0.1 s.</li>
+          <li>A held run averages about 115 px/s, not 125: at top speed, friction and acceleration take turns frame by frame. The same quirk gives about 240 on land.</li>
+        </ul>
+
+        <h3>Float items</h3>
+        <p>Surfboards, the Fishing Dinghy, Jet Skis, the Swan Boat and others. They are checked on the frame you enter the water.</p>
+        <ul>
+          <li>While you float, gravity and the fall cap are both zero, so you stop at the surface, half under.</li>
+          <li>With gravity at 0, an upward speed is kept for the whole water column.</li>
+          <li>You can jump at any time, not just while sinking, and a jump keeps its full −270 until your middle point leaves the water.</li>
+          <li>Floating ends 3 s after you enter (never for the Fishing Dinghy and the two Jet Skis), or when you touch the ground.</li>
+          <li>The timer restarts each time you come back in, so hopping out and in should keep you afloat.</li>
+        </ul>
+
+        <h3>Floaties</h3>
+        <p>The Sea Monster Floatie, Water Wings, Flaming Floaties and the Unicorn Floatie.</p>
+        <ul>
+          <li><b>Sinking:</b> your speed is cut to 40 px/s and you are pushed up at 320 px/s², so you sink only about 2 to 3 px.</li>
+          <li><b>Rising:</b> a gentle upward push of 12 px/s², with upward speed capped at 120 px/s.</li>
+          <li>That cap applies to jumps too, so a water jump with floaties drops from −270 to −120 after one frame.</li>
+        </ul>
+        <p class="note">The Slippery Flag Pole acts like water at the middle of your box. See <a href="#surfaces">Ice and slow ground</a>.</p>
+      </article>
+
+      <article class="topic" id="antigravity" data-title="Antigravity field">
+        <p class="crumb">Blocks</p>
+        <h2>Antigravity field</h2>
+        <p class="lead">The HyperTech Antigravity Field (6748) isn't solid. You go through it, and while the middle of your body is inside, you are lighter.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for the field.</span></p>
+
+        <h3>What it does</h3>
+        <ul>
+          <li>Gravity is 0.375 times as strong while the middle point of your box is inside.</li>
+          <li>You can jump again while you are falling: a press while falling inside it jumps.</li>
+          <li>A jump started inside it also stores one air jump, so you get one more in the air. A ground jump doesn't spend it.</li>
+          <li>That stored air jump is kept after you leave the field, and after you land, until you use it.</li>
+        </ul>
+
+        <h3>The numbers</h3>
+        <p>Under × 0.375 a held jump rises 273 px, stays up 2.45 s and travels 589 px, if all of it is under the effect.</p>
+
+        <h3>Low gravity in the whole world</h3>
+        <p>The Antigravity Generator and Mars weather lower gravity everywhere. See <a href="#low-gravity">Low gravity</a>.</p>
+      </article>
+
+      <article class="topic" id="low-gravity" data-title="Low gravity">
+        <p class="crumb">Blocks</p>
+        <h2>Low gravity</h2>
+        <p class="lead">Two things lower gravity in the whole world: the Antigravity Generator while it is switched on, and Mars weather.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet. There is no generator and no weather there.</span></p>
+
+        <h3>Antigravity Generator (4992), switched on</h3>
+        <ul>
+          <li>Height and distance have no limit.</li>
+          <li>Gravity is <b>0.375 times</b> as strong in the whole world.</li>
+          <li>The <a href="#antigravity">Antigravity field</a>'s jump rules also apply everywhere: a press works on any frame you are falling, and every ground jump stores an air jump.</li>
+        </ul>
+
+        <h3>Mars weather</h3>
+        <ul>
+          <li>Gravity is <b>0.75 times</b> as strong, and nothing else changes. There are no extra jumps.</li>
+          <li>A held jump rises 138 px, stays up 1.25 s and travels 300 px.</li>
+          <li>The game uses the active weather machine's weather if one is on, otherwise the world's own weather. So in a Mars world, switching on any weather machine removes the low gravity.</li>
+        </ul>
+
+        <h3>Together</h3>
+        <p>They do not multiply. If the generator or a field applies, Mars is ignored.</p>
+      </article>
+
+      <article class="topic" id="gravity-well" data-title="Gravity Well">
+        <p class="crumb">Blocks</p>
+        <h2>Gravity Well</h2>
+        <p class="lead">The Gravity Well (6772) isn't solid. While it is switched on, it pulls you toward itself.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>The pull</h3>
+        <ul>
+          <li>It adds a push of <b>60 px/s</b> toward itself. The push is added to this frame's movement and to the contact test. Your own stored speed is not changed.</li>
+          <li>While you are falling, the sideways part of the push is tripled.</li>
+          <li>An upward push only happens when you are within 16 px of the well sideways and it is more above you than beside you. If the upward part is then larger than the sideways part (after the tripling), it is multiplied by 7.</li>
+          <li>If the pull is upward, you are falling and your downward move is blocked, your fall speed is set to 0.</li>
+        </ul>
+
+        <h3>Hanging in the middle</h3>
+        <ul>
+          <li>Within 16 px of its centre, both sideways and up or down, there is no sideways push, and if you are falling, the upward push equals your fall speed exactly. You hang there.</li>
+          <li>While you hang, gravity keeps raising your stored fall speed to the 400 cap. So when you leave the centre you start falling at up to 400 px/s.</li>
+        </ul>
+
+        <h3>When it reaches you</h3>
+        <ul>
+          <li>It only acts while switched on.</li>
+          <li>It reaches you when the middle of your body is within R px of the well, both sideways and up or down. R is 32 × the block's range value, and at least 32.</li>
+          <li>If several reach you, the nearest one acts.</li>
+          <li>It does nothing while the middle of your body is in a checkpoint.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="conveyor" data-title="Conveyors and wind">
+        <p class="crumb">Blocks</p>
+        <h2>Conveyors and wind</h2>
+        <p class="lead">Seven blocks take over your run while the middle of your body is inside them. The Conveyor Belt is different: a solid block that shifts you along.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> one Conveyor tile, pushing right. Flipped ones and the Conveyor Belt: not yet.</span></p>
+
+        <h3>What they do</h3>
+        <ul>
+          <li><b>With the flow:</b> your speed is set to 1000 px/s and then cut to your top speed, so you are at top speed at once. Standing still counts as with the flow.</li>
+          <li><b>Against it:</b> you are held to 100 px/s. If you are already moving against it at 100 px/s or less, your speed is left alone.</li>
+          <li>A block that isn't flipped pushes right. Flipped blocks mirror this.</li>
+        </ul>
+
+        <h3>Conveyor Belt (15486)</h3>
+        <ul>
+          <li>It is a solid block (action type 144).</li>
+          <li>While it is the block the ground check picked (the leftmost solid block under your box), your position is shifted 1 px per <a href="#frame-time">16 ms frame</a>: to the right, or to the left if the tile is flipped.</li>
+          <li>The shift is the frame time × 100 px, rounded down to a whole pixel: 1 px at 16 ms, 2 px for a frame longer than 20 ms, and nothing for a frame shorter than 10 ms.</li>
+          <li>That shift has no collision check. At a wall it keeps pushing you 1 px per frame into the wall. Once your box overlaps the wall you cannot move, and after 10 px the middle of your body is inside the wall and you are crushed.</li>
+        </ul>
+
+        <h3>Which blocks</h3>
+        <p>Summer Breeze (2864), Winter Wind (3232), Megawatt Bass Speaker (5518), Starship Turbo Fan (7018), Clover Fan (10704), Conveyor Block (11192) and Space Conveyor Block (11424).</p>
+        <ul>
+          <li>The rule is tied to the block type (action type 60), not to one block. So all seven follow it.</li>
+          <li>The code has no on/off test for them.</li>
+          <li>The direction comes from whether the tile is flipped.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="waterfall" data-title="Waterfall">
+        <p class="crumb">Blocks</p>
+        <h2>Waterfall</h2>
+        <p class="lead">You walk and fall straight through it, but it won't let you rise.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes. One Waterfall tile stands for all five blocks.</span></p>
+
+        <h3>What it does</h3>
+        <ul>
+          <li>It refuses any move up that would leave your body in it (collision kind 7). From below it is a ceiling, and if any part of you is already inside, you can't rise at all, so jumps, double jumps and bounces don't lift you.</li>
+          <li>Your upward speed isn't cancelled. You stay put and count as airborne until gravity uses the jump up: about 0.45 s holding jump, 0.075 s if you let go.</li>
+          <li>It isn't solid and it isn't water. It never changes your gravity, speed or fall cap, and it can't be stood on.</li>
+          <li>Solid ground under a waterfall still counts as ground. The ground check skips waterfall blocks.</li>
+        </ul>
+        <p class="note">Staying put is the same as under any ceiling: nothing zeroes your upward speed, the move is simply blocked each frame. See <a href="#ceilings">Ceilings</a>.</p>
+
+        <h3>Which blocks</h3>
+        <p>Cosmic Rain (4530), Waterfall (5034), Castle Sewage Pipe (6186), Sunnyside Yolkfall (13384) and Juice Waterfall (16202).</p>
+      </article>
+
+      <article class="topic" id="platforms" data-title="Platforms">
+        <p class="crumb">Blocks</p>
+        <h2>Platforms and collision kinds</h2>
+        <p class="lead">Every block has a collision kind, and the kind decides which sides stop you. A platform is any block of kind 2: you stand on it, and you can pass through it from every other side.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for platforms: the Platform tile and the Diving Board follow the rules below. One-Way Blocks, doors and gates: not yet.</span></p>
+
+        <h3>What that means</h3>
+        <p>T is the top edge of the platform.</p>
+        <ul>
+          <li><b>Falling through:</b> if your feet are already below T, nothing stops you and you fall through. That is the case when you walked in from the side, or when your jump topped out inside it.</li>
+          <li><b>Jumping up through one:</b> you land only if your feet get to T or higher. One pixel short and you drop back through. With a 104 px jump that is a platform up to 3 tiles above the floor, 6 tiles with Double Jump.</li>
+          <li><b>Block effects still use the whole 32 × 32 square:</b> platform trampolines bounce, the Bouncy Turret bumps, Spikey Leaves kill. A platform trampoline such as the Diving Board still needs your feet at or above its top, and you not rising.</li>
+          <li><b>No dropping down:</b> there is no key for dropping down through a platform.</li>
+          <li>Only the top row matters for movement. The lower 31 px do nothing.</li>
+        </ul>
+
+        <h3>The rules</h3>
+        <p>There is no single platform routine: each of the places below treats kind 2 specially.</p>
+        <ul>
+          <li><b>Sideways:</b> a platform never stops you.</li>
+          <li><b>Upward:</b> a platform never stops you. There is no ceiling under one, so there is no hovering under one.</li>
+          <li><b>Downward:</b> the game moves you 1 px at a time. A platform stops a downward pixel only when your feet are exactly at T before that pixel. So a fall from above always lands, at any speed.</li>
+          <li><b>Standing:</b> you count as on the ground only when your feet are exactly at T. The game then snaps your height to a whole pixel. Otherwise the ground check ends as "not on the ground".</li>
+          <li><b>Never a wall:</b> a platform does not zero your sideways speed, it cannot crush you, and it cannot be the wall for <a href="#climbing">wall climbing</a>.</li>
+        </ul>
+
+        <h3>Which blocks are platforms</h3>
+        <p>158 blocks are platforms. Besides the plain ones (Wooden Platform, Ladder, Staircase, Climbing Vine, tables, roofs) that includes 8 trampolines, 4 ice-type blocks, the Bouncy Turret and Spikey Leaves.</p>
+
+        <h3>The kinds</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Kind</th><th>Example</th><th>Sideways</th><th>Up</th><th>Down</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>Cave Background, Glass Pane</td><td>never</td><td>never</td><td>never</td></tr>
+              <tr><td>1</td><td>Dirt, Death Spikes, Lava, Ice</td><td>blocks</td><td>blocks</td><td>blocks</td></tr>
+              <tr><td>2</td><td>Wooden Platform, Diving Board, Ladder, Climbing Vine (158 items in all)</td><td>never</td><td>never</td><td>blocks only when your feet were exactly at the top</td></tr>
+              <tr><td>5</td><td><a href="#one-way">One-Way Block</a></td><td>blocks from one side only (by whether the tile is flipped)</td><td>never</td><td>never</td></tr>
+              <tr><td>7</td><td>The five <a href="#waterfall">waterfall</a> blocks</td><td>never</td><td>blocks</td><td>never</td></tr>
+              <tr><td>3, 4, 6, 8 to 13</td><td>Doors, entrances, gates and blocks that switch on and off</td><td colspan="3">Solid for some players, or only at some times.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="topic" id="one-way" data-title="One-Way Block">
+        <p class="crumb">Blocks</p>
+        <h2>One-Way Block</h2>
+        <p class="lead">The One-Way Block (3796) lets you through sideways in one direction only. It is the only block of its kind.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>Which way it blocks</h3>
+        <ul>
+          <li>Moving <b>right</b> into it is blocked if the tile is flipped.</li>
+          <li>Moving <b>left</b> into it is blocked if the tile is not flipped.</li>
+          <li>Which way the arrow points on screen for each case is not known. Check in the game.</li>
+        </ul>
+
+        <h3>What it never does</h3>
+        <ul>
+          <li>It never blocks up or down. It is never ground: you fall through it from above.</li>
+          <li>It never zeroes your sideways speed the way a wall does. Held against one, you keep full run speed and move at once when it ends.</li>
+          <li>It cannot crush you.</li>
+        </ul>
+
+        <h3>Inside it</h3>
+        <p>Below, <b>against the arrow</b> means the way the block refuses, and <b>with the arrow</b> means the way it lets you through. The entry side is the side you come in from when you go with the arrow.</p>
+        <p>You are not trapped as soon as part of your box is inside. The point of no return is <b>2 px</b>, not 1 px.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Your box inside the tile</th><th>Step against the arrow</th><th>Step with the arrow</th></tr></thead>
+            <tbody>
+              <tr><td>0 px, touching it on the entry side</td><td>Free</td><td>Free</td></tr>
+              <tr><td>Exactly 1 px</td><td>Free: after the step you overlap by 0 px</td><td>Free</td></tr>
+              <tr><td>2 px or more</td><td>Refused</td><td>Free</td></tr>
+              <tr><td>0 px, touching it on the exit side</td><td>Refused: it acts as a wall</td><td>Free</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>The move goes 1 px at a time. A sideways step against the arrow is refused if your box would overlap the tile <b>after</b> the step. Edges that only touch don't count.</li>
+          <li>There is no exception for a box that is already inside.</li>
+        </ul>
+        <p class="note">The 1 px of room makes a trick possible. See <a href="#one-way-edge">One-Way Block edge jump</a>.</p>
+      </article>
+
+      <article class="topic" id="one-way-edge" data-title="One-Way Block edge jump">
+        <p class="crumb">Blocks</p>
+        <h2>One-Way Block edge jump</h2>
+        <p class="lead">Put a <a href="#one-way">One-Way Block</a> between two blocks and there is one spot where you stand on the lower block and can still get back out: exactly 1 px in. From that spot an edge jump takes you out and up with a full jump, and the air jump is kept.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet. The verifier has no One-Way Block tile. With empty air in its place, the checker gives the same jump table from the 1 px spot, and its move already goes 1 px at a time, sideways first and then up. This topic is read from the code and worked out frame by frame.</span></p>
+
+        <h3>The layout</h3>
+        <p>One column, from the bottom up: a plain block, a One-Way Block, a plain block. The One-Way Block lets you go right and refuses steps to the left. There is no floor to the left of the bottom block.</p>
+        <ul>
+          <li>Standing on the bottom block, your body is in the One-Way Block's row.</li>
+          <li>Your head is 2 px under the top block.</li>
+        </ul>
+
+        <h3>Standing on the edge</h3>
+        <p>However much of your box is over the bottom block, that much of it is inside the One-Way Block too.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Your box over the bottom block</th><th>On the ground?</th><th>Can you go back left?</th></tr></thead>
+            <tbody>
+              <tr><td>0 px</td><td>No, you fall</td><td>Yes</td></tr>
+              <tr><td>Exactly 1 px</td><td>Yes</td><td>Yes</td></tr>
+              <tr><td>2 px or more</td><td>Yes</td><td>No. The only way out is right</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li><b>Exactly 1 px</b> is the one spot where you stand on the block and can still go back left.</li>
+          <li><b>Getting onto it:</b> one-frame taps move you 1 px at a time, so you can creep onto it. A full-speed walk moves about 4 px a frame and usually skips past it.</li>
+          <li>You cannot reach it from the right. Steps to the left into the tile are refused.</li>
+        </ul>
+
+        <h3>The edge jump</h3>
+        <p>Stand still on the 1 px spot, then hold left. Your speed builds slowly, so the first 1 px step to the left comes on frame 3. Inside a frame the move goes sideways first, then up. So on frame 3 you step out of the column, and only then rise.</p>
+        <p>Frame 1 is the frame you start holding left. With Double Jump, jump held.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Jump pressed on</th><th>What happens</th><th class="num">Rise</th><th>Air jump</th></tr></thead>
+            <tbody>
+              <tr><td>Any frame, without holding left</td><td>Head hits the top block after 2 px</td><td class="num">2 px</td><td>Kept</td></tr>
+              <tr><td>Frame 1 (same frame as left)</td><td>Pinned under the top block for 2 frames, then clear</td><td class="num">93 px</td><td>Kept</td></tr>
+              <tr><td>Frame 2</td><td>Pinned for 1 frame, then clear</td><td class="num">100 px</td><td>Kept</td></tr>
+              <tr><td>Frame 3 (the edge jump: last frame on the ground)</td><td>Steps out of the column, then rises freely. A full jump</td><td class="num">104 px</td><td>Kept</td></tr>
+              <tr><td>Frame 4 (ledge grace)</td><td>Already off the block</td><td class="num">104 px</td><td>Used up</td></tr>
+              <tr><td>Frame 5 or later</td><td>Already falling</td><td class="num">104 px</td><td>Used up</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li><b>The edge jump is frame 3:</b> the last frame any of your box is over the block. It is a ground jump, so the air jump is kept, and the top block is no longer above you when you rise.</li>
+          <li><b>Pressing early is safe here</b> because the ceiling is a plain block. It only costs height: your upward speed fades by 16 px/s for each frame you are pinned. See <a href="#ledges">Ledges and gaps</a>.</li>
+          <li><b>From 2 px or more, none of this works.</b> Holding left moves you 0 px, and every jump stops after 2 px.</li>
+        </ul>
+        <p class="note">The frame numbers are for a start from standing still with no leftover fraction of a pixel. Arriving with speed, or with a leftover fraction of a pixel, shifts which frame the step happens on. The rule stays the same: the jump must be on the frame your box steps out of the column.</p>
+      </article>
+
+      <article class="topic" id="portals" data-title="Portals and checkpoints">
+        <p class="crumb">Blocks</p>
+        <h2>Portals, doors and checkpoints</h2>
+        <p class="lead">These blocks fire when the middle of your body is inside the tile, once per entry. Touching the tile with the edge of your box does nothing.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet. Its Start is only the place you appear, and its Finish only ends the run.</span></p>
+
+        <h3>When they fire</h3>
+        <ul>
+          <li>Once per entry, when the middle of your body is inside the tile.</li>
+          <li>They are ready again as soon as the middle of your body is in an ordinary tile.</li>
+          <li>With a 20 × 30 box the middle crosses a tile border 10 px after your leading edge does (2.5 frames at 250 px/s), and 15 px after your top or bottom edge does.</li>
+        </ul>
+
+        <h3>Portals</h3>
+        <p>Time-Space Rupture (382), Orange Portal (544), Blue Portal (546), Hellgate (3116), Lucky Portal (4520), Love Portal (10654), Mystery Portal (11136).</p>
+        <ul>
+          <li><b>On entry</b> you are held still (no gravity, no move, from that frame on) and a request goes to the server. Your speed is not cleared at that moment.</li>
+          <li><b>When the server then places you:</b> your speed is set to 0, and slippery, the mud slow state and knockback are cleared. The portal you arrive in does not fire.</li>
+          <li>The leftover fractions of a pixel and "on the ground" are kept.</li>
+          <li>The delay and the exact arrival spot are decided by the server.</li>
+        </ul>
+
+        <h3>Doors</h3>
+        <p>Door (12) and the other door blocks, and the Main Door (6), use the same routine as portals, but only on a key press or tap.</p>
+
+        <h3>Checkpoints</h3>
+        <p>Checkpoint (410) and 26 more blocks of the same type. A request is sent when the middle of your body enters, unless it is already your checkpoint.</p>
+
+        <h3>Others that only send a request</h3>
+        <p>Race Start Flag (428), Race End Flag (430), Challenge End Flag (3808), the Game Flag and Game Goal blocks while you are on a team, pickups such as Blarney Stone (1508), and the adventure blocks.</p>
+      </article>
+
+      <article class="topic" id="climbing" data-title="Wall climbing">
+        <p class="crumb">Blocks</p>
+        <h2>Wall climbing</h2>
+        <p class="lead">With climbing gear you can hang on a wall wherever a Climbing Wall or Climbing Rocks tile sits behind you, and jump up along it.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+
+        <h3>What you need</h3>
+        <ul>
+          <li><b>A climbing tile:</b> Climbing Wall (3586) or Climbing Rocks (15616). They are not solid. They sit behind you.</li>
+          <li><b>Climbing gear.</b> One item is enough. The list is under <a href="#gear">Gear</a>.</li>
+          <li><b>A wall:</b> any block that is solid for you. Platforms and One-Way Blocks do not count.</li>
+        </ul>
+
+        <h3>What that means</h3>
+        <ul>
+          <li><b>Hold toward the wall.</b> The check only reaches the wall while you move into it. Let go and you drop.</li>
+          <li><b>A jump from the wall is a ground jump</b> (450, or 270 under the × 0.6 conditions). It does not use the air jump.</li>
+          <li>Sticking does not give the air jump back. Only real ground does.</li>
+          <li>You never stick while rising. So a jump goes up along the wall, and you stick again at the top if the middle of your body is still in a climbing tile.</li>
+          <li>While you hang, gravity adds one step each frame and the stick cancels it. After 1 to 5 frames there is no slide at all.</li>
+        </ul>
+
+        <h3>The rule</h3>
+        <p class="rule">It runs in the sideways contact check, right after a solid wall has taken your sideways speed. If the middle of your body is in a climbing tile, you wear the gear, you are not rising and you are not on the ground: your sideways and vertical speed become <b>0</b> and you count as on the ground.</p>
+
+        <h3>Adventure Rope Piton</h3>
+        <p>The Adventure Rope Piton (4700) does the same for a player holding the adventure Rope item, with no gear.</p>
+      </article>
+
+      <article class="topic" id="surfaces" data-title="Ice and slow ground">
+        <p class="crumb">Blocks</p>
+        <h2>Ice, mud, hay and glue</h2>
+        <p class="lead">Some blocks and tile flags change how you move while you stand on them, and one acts on the middle of your body like water.</p>
+        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet. There is no ice, mud, hay or glue there.</span></p>
+
+        <h3>Slow ground and glue</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th></th><th>Hay</th><th>Mud Puddle, Quicksand Block</th><th>Block Glue</th></tr></thead>
+            <tbody>
+              <tr><td>What it is</td><td>A plain solid block</td><td>Solid slow-ground blocks</td><td>A "glued" flag on a tile</td></tr>
+              <tr><td>Top speed</td><td>Unchanged</td><td>× 0.6 (150 px/s)</td><td>× 0.5 (125 px/s)</td></tr>
+              <tr><td>Jump</td><td>× 0.6 (about 38 px high, not 104)</td><td>× 0.6</td><td>Unchanged</td></tr>
+              <tr><td>Which tile counts</td><td>The tile under the middle of your feet, when you jump</td><td>The leftmost solid tile under your box</td><td>The tile the middle of your body is in</td></tr>
+              <tr><td>How long it lasts</td><td>That one jump</td><td>Until you land on something else, so also in the air</td><td>Only while your middle is in the tile</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Snow Block (5396) behaves like Hay, unless you wear Snowshoes (5420). In the game's own data, glue is called TILE_FLAG_GLUED.</p>
+
+        <h3>What follows from that</h3>
+        <ul>
+          <li><b>Hay only touches the jump you start on it.</b> The game looks 1 px below the middle of your feet. If nothing solid is there it tries the left corner, then the right. A ledge-grace jump has nothing under any of the three, so it is a full jump off Hay. A Double Jump air jump after Hay is also full strength.</li>
+          <li><b>Mud stays with you in the air.</b> The slow state is only updated when you land. After jumping off mud your top speed stays at 150 and your air jump is the weak one, until you land on another block.</li>
+          <li><b>The left block wins for mud.</b> Mud on your left counts with 1 px of your box over it. Mud on your right counts only once you have completely left the block to its left. Ice follows the same rule.</li>
+          <li><b>Glue acts on the tile your body is in, not the floor.</b> Glue on a solid floor block does nothing. The code also applies it only if that tile has no background.</li>
+          <li><b>Mud and glue stack:</b> 250 × 0.6 × 0.5 = 75 px/s.</li>
+        </ul>
+
+        <h3>Slippery Flag Pole</h3>
+        <p>The Slippery Flag Pole (7952) acts at the middle of your box: gravity × 0.3, fall cap 120, jump × 0.6. A jump started inside it stores one air jump.</p>
+
+        <h3>Ice</h3>
+        <p>On Ice (440), Slime (978) and the other ice-type blocks below (action type 29), you are slippery once you land: steering × 0.15, no friction, and a wall bounces you back at 70% (× −0.7).</p>
+
+        <h3>Moving on ice</h3>
+        <ul>
+          <li><b>Ice has no friction at all.</b> With no key held, your speed never drops.</li>
+          <li>Turning round from 250 px/s takes 87 frames (1.39 s) and 172 px. On normal ground a stop takes 14 frames and 24 px.</li>
+          <li><b>Ice hop:</b> the weak steering on ice applies only while you are not falling. While you fall it is full strength. So on ice, standstill to top speed takes 1.39 s walking and 0.30 s tap-hopping.</li>
+          <li><b>Speed kept on ice:</b> a 500 px/s bumper launch that lands on ice stays at 500. A held jump from there covers 472 px.</li>
+        </ul>
+
+        <h3>When you are slippery</h3>
+        <p class="rule">You are slippery if the block you landed on is ice-type, or it is the Ice Crust Block (5602), or you wear slippery gear. Grip gear cancels all three.</p>
+        <ul>
+          <li>It is only worked out when the ground check finds ground. So it stays with you in the air until the next landing.</li>
+          <li><b>Slippery gear</b> makes every floor slippery: Slippery Chemical Coat (9078), Bob The Gross Blob (8374), Sledding Penguin (10404), Chilled Chucks (14076), Abominable Snowman Suit (7408) together with Abominable Snowman Mask (7410), or any item marked that way in the item list.</li>
+          <li><b>Grip gear</b> cancels slippery everywhere: Ice Skates of Winter (5418), or any item marked that way in the item list.</li>
+        </ul>
+
+        <h3>Ice-type blocks</h3>
+        <p><b>Solid:</b> Ice (440), Slime (978), Ice Cube (1344), Frozen DNA Fragment A and B (1346, 1348), Nacho Block (2596), Frozen Pineapple Block (2750), Snowflake Block (3234), Pineapple Ring (3618), Obsidian (5042), the six Dancefloors (5398, 5470, 5472, 5474, 5476, 5478), Space Rock (7006), Oil Slick (7158), Fatberg Block (8376), Strawberry Slime Block (8390), Block o' Barf (8490), Dinosaur in Ice Block (11490), Slick Red, Blue and Green Blocks (12530, 12532, 12534), Rink of Love (13144).</p>
+        <p><b>Platforms:</b> Slip 'n' Slide Slime Floor (6984), Waterslide Strut (7520), Sideways Vines (13306), Flowstone (15634).</p>
+      </article>
+
+      <article class="topic" id="player" data-title="The player">
+        <p class="crumb">Player</p>
+        <h2>The player</h2>
+        <p class="lead">A 20 × 30 px box that runs, jumps and falls in whole-pixel steps, one step every <a href="#frame-time">16 ms</a>.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for running, jumping, falling and moving: this is what its physics is built from. One difference: it works out gravity and sideways speed before the ground check, not after it, so a fall off a ledge starts one frame later than in the order below. The Gravity Well, the block triggers, the 16-second key release and the special states: not yet.</span></p>
+
+        <h3>The box</h3>
+        <p>20 px wide and 30 px high. That size comes from testing, not from the code. In the game the player's position is the box's top-left corner; the verifier follows the middle of the feet.</p>
+
+        <h3>Running</h3>
+        <ul>
+          <li>Left and right add or subtract acceleration. Both keys together cancel out.</li>
+          <li>You speed up toward top speed. With no key, or already at top speed, friction pulls you toward 0 at 1200 px/s². So a held run alternates between top speed and one braking step, and averages about 240.</li>
+          <li>Standstill to full speed takes about 0.21 s, and full speed to a stop the same.</li>
+          <li>A direction key held for 16 seconds is released by the game and has to be pressed again. With Slithering Slippers (9420) or Present Goblin Disguise (4260) that does not happen, and with no key held you keep running the way you face.</li>
+        </ul>
+
+        <h3>Jumping</h3>
+        <ul>
+          <li>A jump <b>sets</b> your upward speed to 450 px/s. It doesn't add.</li>
+          <li>A full held jump rises about 101 px (3.2 tiles) and takes 0.45 s to reach the top. Let go and gravity is 6000 px/s²: a one-frame tap hops about 20 px.</li>
+          <li>In <a href="#frame-time">16 ms frames</a> the held jump comes out at 104 px. The table is under <a href="#reach">How far and how high</a>.</li>
+          <li>A press and a release that both happen between two frames give no jump.</li>
+        </ul>
+
+        <h3>Falling</h3>
+        <p>Gravity is 1000 px/s² in the air and nothing on the ground. Falls stop speeding up at 400 px/s (12.5 tiles per second), which you reach after 0.4 s and 80 px.</p>
+
+        <h3>Moving, walls and floors</h3>
+        <ul>
+          <li>Each frame the box moves a whole number of pixels, one pixel at a time, sideways first and then up or down, and stops at the first block. The leftover fraction of a pixel carries to the next frame.</li>
+          <li>A wall zeroes your sideways speed (on slippery ground it bounces you back at 70%). Landing zeroes your downward speed.</li>
+          <li>Nothing zeroes your upward speed at a ceiling. The move is simply blocked each frame, so you stay pinned and your speed fades under gravity. See <a href="#ceilings">Ceilings</a>.</li>
+          <li>The game rounds each frame's movement in a way that favours right and down. Leftward and upward movement lags by up to 1 px, so a pixel-exact jump can work in one direction only.</li>
+        </ul>
+
+        <h3>When a press jumps</h3>
+        <p>The full list, in the order the game checks:</p>
+        <ol>
+          <li><b>On the ground:</b> jump. Nothing is spent.</li>
+          <li><b>On the ledge grace frame</b> (the frame after you walk off a ledge): jump. A stored air jump is cleared.</li>
+          <li><b>With a stored air jump:</b> jump. The air jump is cleared.</li>
+          <li><b>With the middle of your body in water while sinking</b> (or while floating on a float item): jump.</li>
+          <li><b>While falling, with the middle of your body in an Antigravity Field</b>, or with the Antigravity Generator switched on anywhere in the world: jump.</li>
+        </ol>
+        <ul>
+          <li><b>Ledge grace uses up the air jump.</b> The game handles that press like an air jump. So with Double Jump the grace frame gives nothing extra: one press, one jump, air jump gone. Without Double Jump it gives one jump, one frame late.</li>
+          <li>The grace jump's strength is the usual one (−450, or −270 under the × 0.6 conditions).</li>
+          <li>The frame before it, the last one still on the ground, is an ordinary ground jump and keeps the air jump. See <a href="#ledges">Ledges and gaps</a>.</li>
+          <li>Mars weather is not in this list. It gives lower gravity only. See <a href="#low-gravity">Low gravity</a>.</li>
+        </ul>
+        <p class="note">The verifier follows the ledge grace rule.</p>
+
+        <h3>One frame, in order</h3>
+        <ol>
+          <li><b>Water check:</b> is the middle of your body in a water tile.</li>
+          <li><b>Ground check.</b></li>
+          <li><b>Controller step:</b> read the keys, then gravity, then sideways speed.</li>
+          <li><b>Pull from a switched-on <a href="#gravity-well">Gravity Well</a></b>, if one is in range.</li>
+          <li><b>Contact test:</b> the sideways list first, then the up-and-down list.</li>
+          <li><b>Block triggers at the middle of your body:</b> crush check, checkpoints, portals, Steam Stomper.</li>
+          <li><b>Jump handling.</b></li>
+          <li><b>Move:</b> sideways pixels first, then up or down.</li>
+        </ol>
+
+        <h3>Special states</h3>
+        <p>The server can set flags: reversed left and right (the Mind Ghost effect), frozen, noclip, immune to pain blocks, immune to deadly blocks, and slow fall.</p>
+        <ul>
+          <li><b>Frozen</b> stops your keys, the contact test and jumping, but gravity and the move still run.</li>
+          <li>Entering a door or a portal stops everything. See <a href="#portals">Portals, doors and checkpoints</a>.</li>
+        </ul>
+
+        <h3>Checkpoint</h3>
+        <p>In this verifier you appear with your head at the top of the checkpoint's tile, 2 px above whatever is below. You can jump at once, even with nothing under you, and with Double Jump the second jump is ready too, unless a spike is right under the checkpoint. A jump or a landing uses that spawn jump up.</p>
+
+        <h3>Numbers the server can change</h3>
+        <div class="tablewrap">
+          <table class="kv">
+            <thead><tr><th>Value</th><th class="num">Default</th></tr></thead>
+            <tbody>
+              <tr><td>Top speed</td><td class="num">250 px/s</td></tr>
+              <tr><td>Acceleration</td><td class="num">1200 px/s²</td></tr>
+              <tr><td>Gravity</td><td class="num">1000 px/s²</td></tr>
+              <tr><td>Water speed</td><td class="num">set at spawn, usually 125 px/s</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Numbers built into the game</h3>
+        <div class="tablewrap">
+          <table class="kv">
+            <thead><tr><th>What</th><th class="num">Value</th></tr></thead>
+            <tbody>
+              <tr><td>Jump speed (upward)</td><td class="num">450 px/s</td></tr>
+              <tr><td>Fall cap</td><td class="num">400 px/s</td></tr>
+              <tr><td>Extra gravity while rising with jump let go</td><td class="num">5000 px/s²</td></tr>
+              <tr><td>Braking with no key held</td><td class="num">1200 px/s²</td></tr>
+              <tr><td>Steering on slippery ground and in knockback</td><td class="num">× 0.15</td></tr>
+              <tr><td>Gravity while gliding</td><td class="num">× 0.3</td></tr>
+              <tr><td>Gravity and fall cap in water and on a Slippery Flag Pole</td><td class="num">× 0.3</td></tr>
+              <tr><td>Gravity under Mars weather / with the Antigravity Generator on</td><td class="num">× 0.75 / × 0.375</td></tr>
+              <tr><td>Jump and speed in water or on slow tiles</td><td class="num">× 0.6</td></tr>
+              <tr><td>Trampoline bounce</td><td class="num">800 px/s</td></tr>
+              <tr><td>Pain-block knockback (sideways / up)</td><td class="num">300 / 800 px/s</td></tr>
+              <tr><td>Pinball bumper push</td><td class="num">500 px/s</td></tr>
+              <tr><td>Conveyor Block forced speed / most against it</td><td class="num">1000 / 100 px/s</td></tr>
+              <tr><td>Top speed in noclip</td><td class="num">330 px/s</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="topic" id="gear" data-title="Gear">
+        <p class="crumb">Player</p>
+        <h2>Gear</h2>
+        <p class="lead">Items change a few numbers. Some are read from the code and some are only known by measuring.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> Double Jump, the parasol, 3 speed items, High Jump, float items and floaties, as the buttons under Gear. Climbing gear, slippery and grip gear, Snowshoes and auto-run items: not yet.</span></p>
+
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Gear</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td>Double Jump (wings)</td><td>Landing stores one air jump and using it clears it. The air jump sets your upward speed the same as a ground jump (−450, or −270 under the × 0.6 conditions). A jump on the ledge grace frame clears it too, so with Double Jump the grace frame gives nothing extra: one press, one jump, air jump gone. See <a href="#ledges">Ledges and gaps</a>.</td></tr>
+              <tr><td>Slow fall: parasols and glide items</td><td>Gravity × 0.3 for the frame when you are falling, jump is held, you are not in water, and a trigger item is worn. A fresh press in the air spends the air jump before it can glide. Holding from the first jump glides without spending it. The fall cap stays 400, so with default gravity it is 300 px/s². Several triggers don't stack. The report lists 13 parasol-type items (Parasol 1020, Oil-paper Umbrella 7034, Magic Carpet 7144 and others) and 23 glide-type items (Soda Jetpack 1762, Legendary Wings 1784, Da Vinci Wings 8286 and others). The one item check that hadn't been decoded is the four Morty elephants: Morty the Gray, Orange, Pink and Diamond Elephant (7836, 7838, 7840, 7842). With them the glide lists are complete.</td></tr>
+              <tr><td>Speed items</td><td>The client doesn't compute them: the server sends the speed. With 3 items it comes out at about 1.75 times the base speed, from testing.</td></tr>
+              <tr><td>High jump</td><td>The jump code has no high jump multiplier, so it arrives as a changed gravity from the server. Measured: about 713 px/s². The verifier uses × 0.713.</td></tr>
+              <tr><td>Float items, floaties</td><td>See <a href="#water">Water</a>. The verifier lets you wear one of them at a time, because the notes don't say how they combine.</td></tr>
+              <tr><td>Climbing gear</td><td>Lets you hang on a wall where a climbing tile sits behind you. See <a href="#climbing">Wall climbing</a>. One item is enough: Climbing Picks (3588), Claws of Barko (8042), Climbing Boots (3590), S.P.I.D.E.R. Legs (8018), Tarantula Legs (9034), Mountain Boots (5440), Ezio's Boots (7094), Will of the Wild (5712, only in one of its states), or any item marked as climbing gear in the item list.</td></tr>
+              <tr><td>Slippery gear</td><td>Makes every floor slippery: Slippery Chemical Coat (9078), Bob The Gross Blob (8374), Sledding Penguin (10404), Chilled Chucks (14076), Abominable Snowman Suit (7408) together with Abominable Snowman Mask (7410), or any item marked that way in the item list. See <a href="#surfaces">Ice and slow ground</a>.</td></tr>
+              <tr><td>Grip gear</td><td>Cancels slippery everywhere: Ice Skates of Winter (5418), or any item marked that way in the item list.</td></tr>
+              <tr><td>Snowshoes (5420)</td><td>Cancel the Snow Block's weak jump.</td></tr>
+              <tr><td>Auto-run items</td><td>Slithering Slippers (9420) and Present Goblin Disguise (4260). The game does not release a direction key you have held for 16 seconds, and with no key held you keep running the way you face. See <a href="#player">The player</a>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="topic" id="reach" data-title="How far and how high">
+        <p class="crumb">Player</p>
+        <h2>How far and how high</h2>
+        <p class="lead">What one held jump on flat ground gets you, for the usual setups.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for the first four rows: its own physics gives the same rise and travel, to within a pixel. Mars weather and the Antigravity Generator: not yet.</span></p>
+
+        <h3>One held jump</h3>
+        <p>"High Jump" uses the measured gravity 713, and "3 speed items" the measured speed 437.5 px/s. A number in brackets is with Double Jump.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Setup</th><th class="num">Rise</th><th class="num">In the air</th><th class="num">Travel</th><th class="num">Widest pit</th><th class="num">Highest ledge</th></tr></thead>
+            <tbody>
+              <tr><td>Default</td><td class="num">104 px</td><td class="num">59 frames, 0.94 s</td><td class="num">227 px</td><td class="num">7 tiles (14 with Double Jump)</td><td class="num">3 tiles (6)</td></tr>
+              <tr><td>3 speed items</td><td class="num">104 px</td><td class="num">59 frames</td><td class="num">404 px</td><td class="num">13 (25)</td><td class="num">3 (6)</td></tr>
+              <tr><td>High Jump</td><td class="num">145 px</td><td class="num">82 frames, 1.31 s</td><td class="num">316 px</td><td class="num">10 (19)</td><td class="num">4 (9)</td></tr>
+              <tr><td>Both</td><td class="num">145 px</td><td class="num">82 frames</td><td class="num">562 px</td><td class="num">18 (35)</td><td class="num">4 (9)</td></tr>
+              <tr><td>Mars weather</td><td class="num">138 px</td><td class="num">78 frames, 1.25 s</td><td class="num">300 px</td><td class="num">not worked out</td><td class="num">4 (8)</td></tr>
+              <tr><td>Antigravity Generator on</td><td class="num">273 px</td><td class="num">153 frames, 2.45 s</td><td class="num">589 px</td><td class="num">no limit</td><td class="num">no limit</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>What the columns mean</h3>
+        <ul>
+          <li><b>Widest pit:</b> floor at the same height on both sides, a running start, the best pixel alignment and the best press frame. Your box can hang 19 px over each edge, which is why 7 tiles (224 px) fits in 227 px of travel.</li>
+          <li><b>Highest ledge:</b> a standing start beside a wall, in whole tiles.</li>
+        </ul>
+
+        <h3>Small jumps</h3>
+        <ul>
+          <li>A one-frame tap: 20 px up, 18 frames, 70 px travelled.</li>
+          <li>A weak jump (270: water, Hay, mud, Snow Block, flag pole) on land rises 38 px held and 7 px let go.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="ledges" data-title="Ledges and gaps">
+        <p class="crumb">Player</p>
+        <h2>Ledges and gaps</h2>
+        <p class="lead">What happens in the frames around the end of a block: the last jump you can make from it, the one frame of ledge grace after it, and running across a gap without jumping.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for the edge jump, ledge grace and the two layouts below: the checker gives the same results. Gap running comes out differently there. See the note at the end of this topic.</span></p>
+
+        <h3>Edge jump and ledge grace</h3>
+        <p>An <b>edge jump</b> is a jump pressed on the last frame you are still on the ground: the last frame with at least 1 px of your box over the block you are leaving. It is an ordinary ground jump, as late as it can be. Because it is a ground jump, it does not use the Double Jump air jump. <b>Ledge grace</b>, also called coyote time, is the frame after it.</p>
+        <p>The three frames around a ledge, with Double Jump:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Frame of the press</th><th>On the ground?</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr><td>Last frame with at least 1 px of your box over the block (the edge jump)</td><td>Yes</td><td>Ground jump. Air jump kept</td></tr>
+              <tr><td>The next frame (ledge grace)</td><td>No, but you were the frame before</td><td>Jump allowed. Air jump used up</td></tr>
+              <tr><td>Any later frame</td><td>No</td><td>Air jump used. Nothing left</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>The edge jump and ledge grace are two different frames, one after the other. Ledge grace is exactly one frame long.</li>
+          <li>The edge jump is the latest press that still leaves you a second jump.</li>
+          <li>On the grace frame the game handles the press like an air jump. If a Double Jump air jump is stored, it is cleared. So with Double Jump the grace frame gives nothing extra: one press, one jump, air jump gone.</li>
+          <li>Without Double Jump, both frames give one jump.</li>
+          <li>The jump's strength is the usual one (−450, or −270 under the × 0.6 conditions).</li>
+        </ul>
+        <p class="note">For the same jump out of a column with a One-Way Block in it, see <a href="#one-way-edge">One-Way Block edge jump</a>.</p>
+
+        <h3>Why the frame order matters</h3>
+        <p>Inside one frame the game does, in this order: ground check, gravity and sideways speed, contact test, jump, move. The move goes sideways first, then up or down.</p>
+        <ul>
+          <li>The contact test runs before the jump. While you stand, its up-and-down check only looks 1 px below you.</li>
+          <li>On an edge-jump frame, at most about 4 px of your box is still over the block, and the sideways step is about 4 px. So the sideways step carries your box clear of the block's column, and only then does the upward step happen (7 px on the jump frame).</li>
+        </ul>
+
+        <h3>A block overhead</h3>
+        <p>A floor block, one tile of air, then a plain block directly above. Standing in the gap, your head is 2 px under the upper block.</p>
+        <ul>
+          <li><b>Edge jump:</b> the sideways step clears the column first, so nothing is above you when you rise. Full jump, air jump kept.</li>
+          <li><b>Pressing early is safe here.</b> Your head hits the block after 2 px and you are pinned, but nothing cancels your upward speed. It fades by 16 px/s per frame while jump is held (96 per frame if you let go). You keep sliding sideways, and when your box clears the column you go on up with what is left.</li>
+        </ul>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Press</th><th>What happens</th><th class="num">Upward speed left when clear</th></tr></thead>
+            <tbody>
+              <tr><td>Last frame on the ground</td><td>Clear at once</td><td class="num">450 px/s</td></tr>
+              <tr><td>1 frame earlier</td><td>Pinned for 1 frame</td><td class="num">about 434</td></tr>
+              <tr><td>5 frames earlier</td><td>Pinned for 5 frames</td><td class="num">about 370</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>All of these are ground jumps, so the air jump is kept.</p>
+
+        <h3>A spike overhead</h3>
+        <p>A floor block, one tile of air, then a spike directly above.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Press</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr><td>2 or more frames before leaving the block</td><td>Death</td></tr>
+              <tr><td>1 frame before the last ground frame</td><td>Death, one frame after the press</td></tr>
+              <tr><td>Last frame on the ground (the edge jump)</td><td>Safe. Air jump kept</td></tr>
+              <tr><td>The frame after (ledge grace)</td><td>Safe. Air jump used up</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>Why the edge jump is safe:</b></p>
+        <ul>
+          <li>The contact test on that frame runs before the jump and only looks 1 px down. The spike is 2 px above your head, so it is not seen.</li>
+          <li>The sideways step then clears the spike's column, and you rise beside the spike. Edges that only touch don't count.</li>
+          <li>On the next frame both checks use your new position, which is clear of the column.</li>
+        </ul>
+        <p><b>Why one frame early kills:</b></p>
+        <ul>
+          <li>After the sideways step, 1 to 4 px of your box is still under the spike. The spike stops the upward step after 2 px. Being stopped does not kill; only the contact test does.</li>
+          <li>On the next frame, the up-and-down check looks where your box would be after that frame's rise (about 7 px up), at your current sideways position. That box overlaps the spike. You die.</li>
+        </ul>
+        <p>So the window to go up and keep the Double Jump is one <a href="#frame-time">16 ms frame</a>. To get up alive at all, there are two frames: the edge jump and ledge grace.</p>
+
+        <h3>Gap running</h3>
+        <p>When you run off a ledge, gravity starts from 0 and each frame moves you sideways before it moves you down. So your first 1 px drop comes one to three frames after you leave, and by then you may be over the far side.</p>
+
+        <h3>How often a 1-tile gap is crossed</h3>
+        <p>How many of the 32 possible pixel alignments cross a 1-tile gap. Late, Normal and Early say which frame your first 1 px drop comes on. They are explained below.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Speed px/s</th><th class="num">Late</th><th class="num">Normal</th><th class="num">Early</th></tr></thead>
+            <tbody>
+              <tr><td>250</td><td class="num">20</td><td class="num">0</td><td class="num">0</td></tr>
+              <tr><td>281.25</td><td class="num">32</td><td class="num">1</td><td class="num">0</td></tr>
+              <tr><td>312.5</td><td class="num">32</td><td class="num">10</td><td class="num">0</td></tr>
+              <tr><td>343.75</td><td class="num">32</td><td class="num">18</td><td class="num">0</td></tr>
+              <tr><td>375</td><td class="num">32</td><td class="num">24</td><td class="num">0</td></tr>
+              <tr><td>406.25</td><td class="num">32</td><td class="num">30</td><td class="num">0</td></tr>
+              <tr><td>437.5</td><td class="num">32</td><td class="num">32</td><td class="num">4</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>A 2-tile gap is never crossed this way, up to 500 px/s.</p>
+
+        <h3>Which frame the first drop comes on</h3>
+        <p>Which frame it is depends on the leftover fraction of a pixel in the up-and-down direction, which is kept from your last landing (gravity 1000, <a href="#frame-time">16 ms frames</a>):</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Leftover</th><th>First 1 px drop</th><th>Called</th></tr></thead>
+            <tbody>
+              <tr><td>0.244 or more</td><td>First frame in the air</td><td>Early</td></tr>
+              <tr><td>From −0.268 up to 0.244</td><td>Second frame</td><td>Normal</td></tr>
+              <tr><td>Below −0.268</td><td>Third frame</td><td>Late</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>A 1-tile gap is crossed if, after the sideways move of that frame, the left edge of your box is at least 13 px past the left edge of the gap.</p>
+
+        <h3>Setting up the leftover</h3>
+        <p>The leftover after a jump on flat ground, starting from a leftover of 0, by how many frames jump was held:</p>
+        <div class="tablewrap">
+          <table class="kv">
+            <thead><tr><th>Jump held for</th><th class="num">Leftover</th></tr></thead>
+            <tbody>
+              <tr><td>1 frame</td><td class="num">+0.016</td></tr>
+              <tr><td>2 frames</td><td class="num">−0.024</td></tr>
+              <tr><td>3 frames</td><td class="num">−0.360</td></tr>
+              <tr><td>4 frames</td><td class="num">+0.136</td></tr>
+              <tr><td>5 frames</td><td class="num">−0.432</td></tr>
+              <tr><td>6 frames</td><td class="num">+0.128</td></tr>
+              <tr><td>8 frames</td><td class="num">+0.320</td></tr>
+              <tr><td>10 frames</td><td class="num">−0.464</td></tr>
+              <tr><td>15 frames</td><td class="num">−0.384</td></tr>
+              <tr><td>Full hold</td><td class="num">+0.136</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>So a hop held 3, 5, 10 or 15 frames sets up a "late" drop, and a full jump leaves "normal".</p>
+        <p class="note">In the verifier this comes out differently. It works out gravity before the ground check, so a fall off a ledge starts one frame later, and the leftover it keeps after a landing is different. With a leftover of 0 it gets across a 1-tile gap at 250 px/s from 20 of the 32 alignments, where the table under How often a 1-tile gap is crossed says 0.</p>
+      </article>
+
+      <article class="topic" id="ceilings" data-title="Ceilings">
+        <p class="crumb">Player</p>
+        <h2>Ceilings</h2>
+        <p class="lead">Hitting a ceiling doesn't take your upward speed away. You stay pinned under it until gravity has used the speed up, and while you are pinned you don't fall.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes. A block above you, a waterfall and the top edge of the world all pin you this way.</span></p>
+
+        <h3>Ceiling hover</h3>
+        <p>In a tunnel 1 tile high, being pinned carries you across a gap in the floor.</p>
+        <div class="tablewrap">
+          <table class="kv">
+            <thead><tr><th>Start</th><th class="num">Floor gap crossed</th></tr></thead>
+            <tbody>
+              <tr><td>A jump, held</td><td class="num">4 tiles</td></tr>
+              <tr><td>A jump, tapped</td><td class="num">1 tile</td></tr>
+              <tr><td>A trampoline bounce, jump held</td><td class="num">7 tiles</td></tr>
+              <tr><td>A trampoline bounce, jump let go</td><td class="num">2 tiles</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>The rule</h3>
+        <ul>
+          <li>Holding jump, a normal jump stays pinned for about 0.45 s. Let go, about 0.075 s.</li>
+          <li>Nothing zeroes your upward speed when you hit a ceiling. The move is blocked each frame and gravity uses the speed up.</li>
+          <li>Until your speed is used up you are not falling, so the ground check does not run and you do not drop.</li>
+          <li>The same happens under a <a href="#waterfall">waterfall</a> block and at the top edge of the world.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="words" data-title="Words used here">
+        <p class="crumb">Reference</p>
+        <h2>Words used here</h2>
+        <p class="lead">Short meanings for the words this page leans on.</p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>px, tile</td><td>A pixel, and a block's width: 1 tile is 32 px. Speeds are px/s and accelerations px/s².</td></tr>
+              <tr><td>Frame, step</td><td>One tick of the game's movement. On this page it is 16 ms; the game also runs 17 ms frames. See <a href="#frame-time">63fps, Frame time and frame rate</a>. Everything here happens once per frame.</td></tr>
+              <tr><td>Contact test</td><td>The game's check, each frame, for which blocks your box would overlap after this frame's movement, and what each one does to you. It runs before the jump and the move.</td></tr>
+              <tr><td>Overlap</td><td>At least 1 px of your box inside the block's 32 × 32 square. Edges that only touch don't count.</td></tr>
+              <tr><td>Handled</td><td>A block that acted on you in the contact test. The first one ends the check, and the blocks after it in the list never get a turn. A plain wall is the exception: it stops your run and the check goes on.</td></tr>
+              <tr><td>Jump held</td><td>Whether the jump button is down right now. Letting go while rising adds 5000 px/s² to gravity.</td></tr>
+              <tr><td>Jump press</td><td>The frame the jump button goes down. Holding isn't pressing.</td></tr>
+              <tr><td>Set, not added</td><td>Your speed becomes that number whatever it was. Jumps, trampolines and bumpers all do this.</td></tr>
+              <tr><td>On the ground</td><td>There is a block right under your feet, within 1 px.</td></tr>
+              <tr><td>Edge jump</td><td>A ground jump pressed on the last frame any of your box is still over the block.</td></tr>
+              <tr><td>Ledge grace</td><td>The one frame after you walk off a ledge in which a press still jumps. It uses up your air jump if you have one.</td></tr>
+              <tr><td>Coyote time</td><td>Another name for ledge grace.</td></tr>
+              <tr><td>Air jump</td><td>The one extra jump Double Jump stores. Landing refills it; using it empties it.</td></tr>
+              <tr><td>Slippery</td><td>No friction and weak steering until you land. Set by bumpers, by ice-type ground and by slippery gear.</td></tr>
+              <tr><td>Knockback</td><td>The state a pain block puts you in: weak steering, no friction, heavy gravity, until you land.</td></tr>
+              <tr><td>Collision kind</td><td>The number that says which sides of a block stop you.</td></tr>
+              <tr><td>Solid for you</td><td>Some blocks are solid for one player and not for another.</td></tr>
+              <tr><td>Switched on</td><td>A flag on the tile. Many steam and gate blocks change behaviour with it.</td></tr>
+              <tr><td>Worked out frame by frame</td><td>A number found by running the rules on this page one <a href="#frame-time">16 ms frame</a> at a time, with a 20 × 30 px box.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="topic" id="unknown" data-title="Not known yet">
+        <p class="crumb">Reference</p>
+        <h2>Not known yet</h2>
+        <p class="lead">Two lists: what has been tested in the game, and what isn't known at all.</p>
+
+        <h3>Tested in the game</h3>
+        <ul>
+          <li>The player's box is 20 × 30 px.</li>
+          <li>The game stepped its movement every 16 ms in the recordings. The other frame lengths are read from the code: see <a href="#frame-time">63fps, Frame time and frame rate</a>.</li>
+          <li>Three speed items give about 1.75 times top speed.</li>
+          <li>The high jump item brings gravity down to about 713 px/s².</li>
+        </ul>
+
+        <h3>Not known</h3>
+        <ul>
+          <li>The exact numbers the game uses for speed items and High Jump. The server sends them. The values on this page are measured.</li>
+          <li>Hits to death and how fast health comes back. The server decides both, so they can't be read from the code. The 5 hits in 5 seconds under <a href="#lava">Lava</a> is not from the code.</li>
+          <li>The Steam Stomper's cooldown.</li>
+          <li>Which fall speed the Lemon Jelly Block uses.</li>
+          <li>Which way the arrow of an unflipped One-Way Block points on screen.</li>
+        </ul>
+      </article>
+
+    </main>
+  </div>
+</div>
+<script src="js/core.js"></script>
+<script src="js/mechanics.js"></script>
+</body>
+</html>
