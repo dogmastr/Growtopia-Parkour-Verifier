@@ -102,6 +102,7 @@
         </div>
         <label class="ck-rate"><span>Inputs every <b id="ck-rate-val"></b></span><input type="range" id="ck-rate" min="1" max="6" step="1" value="1"><small>How often the checker may change left, right or jump. One game frame is the rate the game reads keys, so nothing finer exists. Longer is quicker but can miss routes that need precise timing.</small></label>
         <label class="toggle"><input type="checkbox" id="ck-nolimit"><span>No limit on the search <small>Otherwise the first search stops after 1.5 million positions at its finest, and the search for a faster route after <span id="ck-cap">1.5 million</span> more. Without the limits a big level can take minutes and a lot of memory.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="ck-swap"><span>Water items can be changed on the way <small>The checker may put a water item on, take it off or swap it for another at any moment, at most once every 333 ms, as in the game. Every change takes away the double jump until you land. The other gear stays as ticked. Checks take longer.</small></span></label>
         <div class="result" id="ck-result" data-state="idle" aria-live="polite">
           <span class="ic" id="ck-ic" aria-hidden="true">?</span>
           <div><p id="ck-text"></p><p class="sub" id="ck-sub"></p><div class="acts" id="ck-acts"></div></div>
@@ -121,8 +122,7 @@
             <button type="button" id="g-parasol" aria-pressed="false">Parasol</button>
             <button type="button" id="g-speed" aria-pressed="false">3 speed items</button>
             <button type="button" id="g-highjump" aria-pressed="false">High jump</button>
-            <button type="button" id="g-float" aria-pressed="false" title="Surfboards, the Swan Boat and the like: you float at the surface for 3 s after entering water. One water item at a time.">Float item</button>
-            <button type="button" id="g-jet" aria-pressed="false" title="The Fishing Dinghy and the Jet Skis: you float at the surface with no time limit. One water item at a time.">Jet Ski / Dinghy</button>
+            <button type="button" id="g-jet" aria-pressed="false" title="The Jet Ski and the Golden Jet Ski: from entering water you float at the surface with no time limit, until you touch the ground or change any item. One water item at a time.">Jet Ski</button>
             <button type="button" id="g-floaties" aria-pressed="false" title="Floaties and water wings: you sink only a few px and drift up slowly. One water item at a time.">Floaties</button>
           </div>
         </div>

@@ -24,7 +24,6 @@ const BUILTIN = [
   ["Bumper launch", () => `${PINBALL_SPEED} px/s`, "Straight away from the bumper's centre; your old speed is dropped."],
   ["Slippery steering · wall bounce", () => `${Math.round(SLIPPERY_STEER * 100)}% · ${Math.round(SLIPPERY_BOUNCE * 100)}%`, "After a bumper, until you land: steering while rising, and the share of your speed a wall throws back."],
   ["Trampoline bounce", () => `${TRAMPOLINE_SPEED} px/s`, "Mushroom and Diving Board: your upward speed is set to this on landing."],
-  ["Float item time", () => `${Math.round(FLOAT_FRAMES * DT)} s`, "From entering the water; the Fishing Dinghy and the Jet Skis have no limit."],
   ["Floaties: sink cut · push", () => `${FLOATIE_SINK} px/s · ${FLOATIE_SINK_PUSH} px/s²`, "Sinking is cut to this speed and pushed back up, so you sink only 2 to 3 px."],
   ["Floaties: rise push · cap", () => `${FLOATIE_RISE_PUSH} px/s² · ${FLOATIE_RISE_CAP} px/s`, "Rising gets a gentle push, and upward speed (jumps too) is capped."]
 ];
@@ -59,8 +58,8 @@ function edited() { return Object.keys(GAME).some(k => P[k] !== GAME[k]); }
 const GEAR_KEY = "tile-hopper-lab.gear.v1";
 const gearBtns = { doubleJump: document.getElementById("g-wings"), parasol: document.getElementById("g-parasol"), highJump: document.getElementById("g-highjump") };
 const speedBtn = document.getElementById("g-speed");   // pressed: 3 speed items, else none
-// P.waterItem, one at a time: 1 a float item (3 s), 2 the Fishing Dinghy or a Jet Ski (no limit), 3 floaties
-const waterBtns = { 1: document.getElementById("g-float"), 2: document.getElementById("g-jet"), 3: document.getElementById("g-floaties") };
+// P.waterItem, one at a time: 2 a Jet Ski, 3 floaties
+const waterBtns = { 2: document.getElementById("g-jet"), 3: document.getElementById("g-floaties") };
 function syncGear() {
   for (const k in gearBtns) gearBtns[k].setAttribute("aria-pressed", String(!!P[k]));
   speedBtn.setAttribute("aria-pressed", String(P.speedItems === 3));
@@ -69,7 +68,7 @@ function syncGear() {
 function loadGear() {
   try {
     const g = JSON.parse(localStorage.getItem(GEAR_KEY) || "null");
-    if (g) { P.doubleJump = !!g.doubleJump; P.parasol = !!g.parasol; P.speedItems = g.speedItems === 3 ? 3 : 0; P.highJump = !!g.highJump; P.waterItem = [1, 2, 3].includes(g.waterItem) ? g.waterItem : 0; }
+    if (g) { P.doubleJump = !!g.doubleJump; P.parasol = !!g.parasol; P.speedItems = g.speedItems === 3 ? 3 : 0; P.highJump = !!g.highJump; P.waterItem = [2, 3].includes(g.waterItem) ? g.waterItem : 0; }
   } catch (e) { /* storage off: no gear */ }
   syncGear();
 }
@@ -79,9 +78,18 @@ function gearChanged() {
   try { localStorage.setItem(GEAR_KEY, JSON.stringify({ doubleJump: !!P.doubleJump, parasol: !!P.parasol, speedItems: P.speedItems === 3 ? 3 : 0, highJump: !!P.highJump, waterItem: P.waterItem || 0 })); } catch (e) { /* this visit only */ }
   onConstChange();
 }
-for (const k in gearBtns) gearBtns[k].addEventListener("click", () => { P[k] = !P[k]; gearChanged(); });
-speedBtn.addEventListener("click", () => { P.speedItems = P.speedItems === 3 ? 0 : 3; gearChanged(); });
-for (const k in waterBtns) waterBtns[k].addEventListener("click", () => { P.waterItem = P.waterItem === +k ? 0 : +k; gearChanged(); });
+// A Gear button is a mod change: while you play it takes the stored air jump away and ends a float, as in
+// the game, and a Jet Ski put on in the water waits for the next time you enter it (core.js: modChanged).
+// A route being replayed is stopped first, because it may have changed the water item itself.
+function wear(change) {
+  if (replay) stopReplay(false);
+  change();
+  if (player) modChanged(player);
+  gearChanged();
+}
+for (const k in gearBtns) gearBtns[k].addEventListener("click", () => wear(() => { P[k] = !P[k]; }));
+speedBtn.addEventListener("click", () => wear(() => { P.speedItems = P.speedItems === 3 ? 0 : 3; }));
+for (const k in waterBtns) waterBtns[k].addEventListener("click", () => wear(() => { P.waterItem = P.waterItem === +k ? 0 : +k; }));
 
 /* frame length: every frame 16 ms (the game showing 63 fps) or 17 ms (59 fps), for the game and the checker alike */
 const frameBtns = { 16: document.getElementById("f-16"), 17: document.getElementById("f-17") };

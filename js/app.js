@@ -299,6 +299,7 @@ function drawDots(pts, color, every) {
     ctx.fillStyle = color; ctx.fillRect(x - s / 2, y - s / 2, s, s);
   }
 }
+const MOD_LABEL = ["ITEM OFF", "", "JET SKI ON", "FLOATIES ON"];   // by P.waterItem after the change (there is no item 1)
 function drawRouteOverlay() {
   if (overlay.closest) {
     drawDots(overlay.closest.pts, "#ff5470", 4);
@@ -308,6 +309,8 @@ function drawRouteOverlay() {
   if (overlay.route) {
     drawDots(overlay.route.pts, "#ffb02e", 4);
     for (const j of overlay.route.jumpAt) { const x = S(j[0]), y = SY(j[1]); ctx.fillStyle = "#15191d"; ctx.beginPath(); ctx.moveTo(x, y - 7 * zoom); ctx.lineTo(x - 5 * zoom, y + 1 * zoom); ctx.lineTo(x + 5 * zoom, y + 1 * zoom); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#ffb02e"; ctx.beginPath(); ctx.moveTo(x, y - 5 * zoom); ctx.lineTo(x - 3 * zoom, y); ctx.lineTo(x + 3 * zoom, y); ctx.closePath(); ctx.fill(); }
+    // where the route changes the water item, and to what
+    for (const m of overlay.route.mods) { const pt = overlay.route.pts[m.at]; pixelText(MOD_LABEL[m.item], S(pt[0]), SY(pt[1] - P.hitH - 8), 7, "#ffffff", "rgba(20,80,150,.9)"); }
   }
   for (const [key, label] of [["A", "A"], ["B", "B"]]) {
     const m = overlay[key]; if (!m) continue;
@@ -425,6 +428,8 @@ function die() {
 function replayInput() {
   const r = replay, d = Math.floor(r.i / r.K), k = r.i % r.K;
   if (d >= r.actions.length) return null;
+  // a water item change the route makes before this input: the Gear buttons show it, and it costs the air jump
+  if (k === 0 && r.mods.has(d)) { P.waterItem = swapItem(P.waterItem, r.mods.get(d)); modChanged(player); syncGear(); }
   const a = r.actions[d], dir = ACT_DIR[a], jump = ACT_JUMP[a];
   const inp = { left: dir < 0, right: dir > 0, jump: !!jump, jumpPressed: k === 0 && !!jump && !r.prevJump };
   if (k === r.K - 1) r.prevJump = !!jump;
@@ -742,6 +747,7 @@ bSlow.addEventListener("click", () => { slow = !slow; bSlow.setAttribute("aria-p
 const ckRoute = document.getElementById("ck-route"), ckJump = document.getElementById("ck-jump");
 const ckBox = document.getElementById("ck-result"), ckIc = document.getElementById("ck-ic"), ckText = document.getElementById("ck-text"), ckSub = document.getElementById("ck-sub"), ckActs = document.getElementById("ck-acts");
 const ckNoLimit = document.getElementById("ck-nolimit");   // read when a check starts
+const ckSwap = document.getElementById("ck-swap");         // the checker may change the water item on the way; read then too
 // How often the checker may change its inputs, in game frames; the slider is read when a check starts.
 const ckRate = document.getElementById("ck-rate"), ckRateVal = document.getElementById("ck-rate-val");
 const every = k => k === 1 ? "game frame" : `${k} game frames`;
@@ -790,12 +796,12 @@ function startJob(kind, start, goal, bounds, passes, extra) {
   cancelCheck();
   const noLimit = ckNoLimit.checked;
   passes = noLimit ? unlimitedPasses(passes) : passes;   // no limit also lifts the finest pass's budget
-  const steps = +ckRate.value;
-  passes = passes.map(p => Object.assign({}, p, { stepsPerDecision: steps }));
-  const j = Object.assign({ id: ++jobSeq, kind, start, goal, bounds, passes, noLimit, P: Object.assign({}, P), level: levelVersion }, extra || {});
+  const steps = +ckRate.value, swap = ckSwap.checked;
+  passes = passes.map(p => Object.assign({}, p, { stepsPerDecision: steps, swap }));
+  const j = Object.assign({ id: ++jobSeq, kind, start, goal, bounds, passes, noLimit, swap, P: Object.assign({}, P), level: levelVersion }, extra || {});
   job = j;
   setBusyButtons(true);
-  showResult("busy", "Searching for a way through…", `Trying runs and jumps with inputs every ${every(steps)}.`, [["Stop", () => { cancelCheck(); showResult("idle", "Stopped.", ""); }]]);
+  showResult("busy", "Searching for a way through…", `Trying runs and jumps${swap ? " and water item changes" : ""} with inputs every ${every(steps)}.`, [["Stop", () => { cancelCheck(); showResult("idle", "Stopped.", ""); }]]);
   const msg = { id: j.id, W: LEVEL.W, H: LEVEL.H, map: LEVEL.map.slice(), water: LEVEL.water.slice(), P: j.P, start, goal, bounds, passes, noLimit: j.noLimit, frameMs: Math.round(DT * 1000) };
   const w = ensureWorker();
   if (w) w.postMessage(msg); else runSync(j, msg);
@@ -849,9 +855,10 @@ const floor2 = s => (Math.floor(s * 100) / 100).toFixed(2);   // a lower bound, 
 // Draws a found route and says how long it takes. note: the line under that.
 function showRoute(j, actions, fastest, note) {
   const rep = replayRoute(world, j.P, j.start, actions, j.K, j.goal);
-  overlay.route = { pts: rep.pts, jumpAt: findJumps(rep.pts), actions, K: j.K, start: j.start, goal: j.goal, kind: j.kind };
+  overlay.route = { pts: rep.pts, jumpAt: findJumps(rep.pts), mods: rep.mods, actions, K: j.K, start: j.start, goal: j.goal, kind: j.kind };
   overlay.closest = null;
-  const what = j.kind === "route" ? "the finish" : "B", secs = ((rep.pts.length - 1) * DT).toFixed(2), jumps = `${rep.jumps} jump${rep.jumps === 1 ? "" : "s"}`;
+  const what = j.kind === "route" ? "the finish" : "B", secs = ((rep.pts.length - 1) * DT).toFixed(2);
+  const jumps = `${rep.jumps} jump${rep.jumps === 1 ? "" : "s"}${rep.mods.length ? ` and ${rep.mods.length} water item change${rep.mods.length === 1 ? "" : "s"}` : ""}`;
   const looking = job === j;
   showResult("ok", `${fastest ? "Possible. The fastest route reaches" : "Possible. The checker reached"} ${what} in ${secs} s with ${jumps}.`, note,
     [["Watch it", () => startReplay(), true], ...(looking ? [["Stop looking", () => stopLooking(j)]] : []),
@@ -887,7 +894,7 @@ function handleResult(j, res) {
     const more = j.noLimit ? "" : ' Tick "No limit" and check again to search every position.';
     if (res.exhausted && res.cellPx <= 1) {
       showResult("bad", `Not possible with these physics: nothing reaches ${what}.`,
-        `Every run and jump was tried, with inputs every ${every(res.K)}, until nothing new turned up (${fmtNodes(res.nodes)} positions; spots within ${res.cellPx} px and ${res.cellSpeed} px/s count as the same). Red dots show how close it got.`, hide);
+        `Every run and jump${j.swap ? " and water item change" : ""} was tried, with inputs every ${every(res.K)}, until nothing new turned up (${fmtNodes(res.nodes)} positions; spots within ${res.cellPx} px and ${res.cellSpeed} px/s count as the same). Red dots show how close it got.`, hide);
     } else if (res.exhausted) {
       const f = res.finer;
       showResult("bad", `Probably not possible: nothing reaches ${what}.`,
@@ -957,18 +964,24 @@ function pickSpot(t) {
 /* replay the checker's route in the game */
 function startReplay() {
   const r = overlay.route; if (!r) return;
+  if (replay) stopReplay(true);   // a replay still running: back to the water item it started with
   if (mode !== "play") setMode("play");
   player = makePlayer(r.start.x, r.start.y);
   step(player, { left: false, right: false, jump: false, jumpPressed: false }, P, world);
   prev = { x: player.x, y: player.y };
   trails.length = 0;
   runState.t = 0; runState.started = true; runState.finished = false;
-  replay = { actions: r.actions, K: r.K, i: 0, prevJump: false };
+  // The route's water item changes take no frame, so they are set apart: mods says before which input each
+  // comes. item is the one worn now, to go back to when the replay ends.
+  const acts = [], mods = new Map();
+  for (const a of r.actions) { if (a >= 6) mods.set(acts.length, a); else acts.push(a); }
+  replay = { actions: acts, mods, K: r.K, i: 0, prevJump: false, item: P.waterItem };
   acc = 0;
   cv.focus({ preventScroll: true });
 }
 function stopReplay(completed) {
   if (!replay) return;
+  if (P.waterItem !== replay.item) { P.waterItem = replay.item; syncGear(); }
   replay = null;
   input.left = input.right = input.jump = false;
   if (!completed) respawn();

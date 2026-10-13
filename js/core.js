@@ -16,7 +16,7 @@ var F = Math.fround, DTF = F(DT);
 // Changes the frame length (whole ms) for every step after it: the game, the checker and replays. Every frame
 // is that long: the game's mix of 16 and 17 at 60 fps isn't modelled. The page and its worker each run their
 // own copy of this file, so the worker is told with each check (js/worker.js).
-function setFrameMs(ms) { DT = ms / 1000; DTF = F(DT); FLOAT_FRAMES = Math.ceil(3 / DT); }
+function setFrameMs(ms) { DT = ms / 1000; DTF = F(DT); }
 // The client's numbers. runSpeed, runAccel and gravity are its defaults, which the server can change
 // (§2.1); the rest are built in (§3). The hitbox is the usual spawn box (§2.1).
 // jumpCut is the extra gravity while rising with jump let go; glide is what a parasol does to gravity.
@@ -31,7 +31,7 @@ var GAME = {
 // P.speedItems (0 or 3) and P.highJump reach the client as a top speed and a gravity sent by the server
 // (§6.3, §6.4), and the reference doesn't have those numbers. The two factors below are the ones this
 // page had before it: 3 speed items multiply runSpeed, the high jump item multiplies gravity.
-// P.waterItem: 0 none, 1 a float item (3 s), 2 a float item with no time limit, 3 floaties (see FLOAT_FRAMES).
+// P.waterItem: 0 none, 2 a Jet Ski, 3 floaties. (1 was the float items that last 3 s, which were taken out.)
 var GEAR = { doubleJump: false, parasol: false, speedItems: 0, highJump: false, waterItem: 0 };
 var SPEED_ITEMS = { 0: 1, 3: 1.75 };
 var HIGH_JUMP = { gravity: 0.713 };
@@ -45,14 +45,32 @@ var FIELD_GRAVITY = 0.375, CONVEYOR_PUSH = 1000, CONVEYOR_BACK = 100;
 // times as strong, the run's top speed is P.waterSpeed, a jump is WATER_JUMP times as strong and works
 // while sinking, and a parasol doesn't open (§4.2, §4.3, §4.6, §6.1).
 var WATER_SLOW = 0.3, WATER_JUMP = 0.6;
-// Water gear (from the user's notes, not the reference). A float item is checked on the frame you enter the
-// water: while you float, gravity and the fall cap are both zero, so you stop at the surface, and a jump can
-// be made at any time. It ends 3 s after you enter (never for the Fishing Dinghy and the Jet Skis) or when
-// you touch ground, and the time restarts on each entry. p.floatF is the frames left (FLOAT_NO_LIMIT: none).
+// Water gear (from the user's notes, not the reference). A Jet Ski (the Jet Ski and the Golden Jet Ski) is
+// checked on the frame you enter the water: from then on you float, with gravity and the fall cap both zero,
+// so you stop at the surface, and a jump can be made at any time. There is no time limit. The float ends when
+// you touch ground or change any item (modChanged, below), and only the next entry starts another, so a Jet
+// Ski put on in the water does nothing until you leave and come back. p.floatF is FLOAT_NO_LIMIT while a
+// float is ready or running, and 0 once it has ended. The game's other float items, which last 3 s and live
+// through a change of other gear, aren't in the verifier (mechanics.html#water).
 // Floaties: in water, sinking is cut to FLOATIE_SINK and pushed back up at FLOATIE_SINK_PUSH, and rising gets
 // a push of FLOATIE_RISE_PUSH and is capped at FLOATIE_RISE_CAP, jumps included. Gravity isn't used.
-var FLOAT_FRAMES = Math.ceil(3 / DT), FLOAT_NO_LIMIT = 255;
+var FLOAT_NO_LIMIT = 255;
 var FLOATIE_SINK = 40, FLOATIE_SINK_PUSH = 320, FLOATIE_RISE_PUSH = 12, FLOATIE_RISE_CAP = 120;
+// Changing mods (mechanics.html#mods). Putting an item on or taking it off goes through the server, and when
+// its answer arrives the game clears the stored air jump, whatever the item was. In the air that leaves you
+// without it until you land; on the ground the ground check gives it back on the next frame. modChanged does
+// that to a player. The game starts a float only on the frame you enter the water, and the clothing update
+// that comes with a change ends a Jet Ski's float, even with the Jet Ski still on. So a change of any item
+// empties the float, and a Jet Ski put on in the water does nothing until you leave and come back.
+// The game sends a change at most once in MOD_COOLDOWN_MS, counted in whole frames, so modCooldown() frames
+// pass between two changes: 21 at 16 ms, 20 at 17.
+// In a route, a water item change is an action that takes no frame: 6 + n wears water item n (0 is none),
+// and 10, on a level with no water, where every such change does the same, takes off the one worn or puts
+// a Jet Ski on. swapItem gives the item worn after it.
+var MOD_COOLDOWN_MS = 333, SWAP_NUDGE = 0.5;
+function modCooldown() { return Math.ceil(MOD_COOLDOWN_MS / (DT * 1000) - 1e-9); }
+function modChanged(p) { p.airJump = false; p.floatF = 0; }
+function swapItem(worn, a) { return a < 10 ? a - 6 : worn ? 0 : 2; }
 // A pinball bumper (the same block type as the jelly blocks and the energy pulser; the bouncy turret is a
 // platform in the game, which this page has no tile for) is solid, and a touch sets your velocity to
 // PINBALL_SPEED straight away from its centre, whatever it was (§7.3), and takes you off the ground. It
@@ -212,14 +230,12 @@ function step(p, input, P, w) {
   // The cell at the middle of the box, where the frame starts: a field, a conveyor and water act on that
   // point only. Water is a flag next to the tile, so a cell can be both.
   var ci = cellAt(w, p.x, p.y - hh / 2), under = ci < 0 ? EMPTY : w.map[ci], inWater = ci >= 0 && w.water[ci] === 1;
-  // A float item (P.waterItem 1 or 2): the time is full whenever you're out of the water, so each entry
-  // restarts it, and it runs down only while you're in the water and floating. A landing empties it (below).
+  // A Jet Ski (P.waterItem 2): out of the water the float is made ready, so each entry starts one. A landing
+  // (below) or a change of item (modChanged) empties it until you have been out of the water again.
   var floating = false, floaties = inWater && P.waterItem === 3;
-  if (P.waterItem === 1 || P.waterItem === 2) {
-    var fullF = P.waterItem === 2 ? FLOAT_NO_LIMIT : FLOAT_FRAMES;
-    if (!inWater || p.floatF > fullF) p.floatF = fullF;
+  if (P.waterItem === 2) {
+    if (!inWater) p.floatF = FLOAT_NO_LIMIT;
     floating = inWater && p.floatF > 0;
-    if (floating && p.floatF !== FLOAT_NO_LIMIT) p.floatF--;
   }
   // Gravity: none on the ground. Rising with jump let go, P.jumpCut is added to it; that brakes the
   // rise, it doesn't stop it. With a parasol,
@@ -271,7 +287,7 @@ function step(p, input, P, w) {
     p.onGround = true; if (P.doubleJump) p.airJump = true;
     p.slippery = false;   // a normal floor ends it (there's no ice here)
     p.spawnJump = false;  // you've landed: the spawn's jump is just the ground now
-    if (P.waterItem === 1 || P.waterItem === 2) p.floatF = 0;   // touching ground ends floating
+    if (P.waterItem === 2) p.floatF = 0;   // touching ground ends floating
   } else { coyote = wasGround && p.vy >= 0; p.onGround = false; }
   // Contact test: the box where this frame's rounded movement would put it, sideways, and then up or
   // down (at most 1 px down; 1 px down when standing), each from where it is now. The two tests are separate,
@@ -398,6 +414,63 @@ function minFallTime(D, vy, P, cap, gmax) {
   if (D <= dc) return (Math.sqrt(vy * vy + 2 * g * D) - vy) / g;
   return tc + (D - dc) / cap;
 }
+// The fewest frames running alone needs to bring the box over the goal's columns, for the fastest-route
+// search on a plain level (no conveyor, bumper, trampoline, field or water). minRunTime is a smooth curve
+// with a frame and 2 px of slack taken off; this is the game's own arithmetic, frame by frame.
+// reach[i][n] is the most px a run can cover within n frames starting at speed V[i], over every choice of
+// keys, for each speed a run from a standstill can have (so the flicker at top speed is in it).
+// A block only ever stops a run, and a run going the wrong way counts as a standstill (a wall can stop it
+// at once), so nothing gets there in fewer frames. That was checked against real routes (from each frame
+// of a route to a later one, it never asked for more frames than the route took); it isn't proven.
+// Returns a function (p, goal) giving the frames, or null when the speeds don't settle into a short list.
+// ponytail: that is so whenever speeding up and braking differ (the Acceleration slider moved off 1200),
+// and the search then runs on minTimeTo alone, as before. A table over ranges of speed would cover it.
+var RUN_FRAMES = 512;
+function runTable(P) {
+  var vmax = topSpeed(P), brake = F(DTF * P.runDecel), at = new Map(), V = [], todo = [0], v, i, n, d;
+  function next(v, dir) {   // the running part of step(), dry and not slippery
+    var a = dir * P.runAccel, sped = false;
+    if (a > 0 && v < vmax) { v = F(v + F(DTF * a)); if (v > vmax) v = vmax; sped = true; }
+    if (a < 0 && v > -vmax) { v = F(v + F(DTF * a)); if (v < -vmax) v = -vmax; sped = true; }
+    if (!sped && v !== 0) v = v > brake ? F(v - brake) : v < -brake ? F(v + brake) : 0;
+    return v;
+  }
+  while (todo.length) {
+    v = todo.pop();
+    if (at.has(v)) continue;
+    if (V.length === 4096) return null;
+    at.set(v, V.length); V.push(v);
+    for (d = -1; d <= 1; d++) todo.push(next(v, d));
+  }
+  var m = V.length, to = new Int32Array(m * 3), px = new Float64Array(m * 3), reach = [], was = new Float64Array(m), now = new Float64Array(m), swap;
+  for (i = 0; i < m; i++) {
+    reach.push(new Float64Array(RUN_FRAMES + 1));
+    for (d = 0; d < 3; d++) { v = next(V[i], d - 1); to[i * 3 + d] = at.get(v); px[i * 3 + d] = F(DTF * v); }
+  }
+  for (n = 1; n <= RUN_FRAMES; n++) {   // was: the most px in exactly n - 1 frames
+    for (i = 0; i < m; i++) {
+      now[i] = Math.max(px[i * 3] + was[to[i * 3]], px[i * 3 + 1] + was[to[i * 3 + 1]], px[i * 3 + 2] + was[to[i * 3 + 2]]);
+      reach[i][n] = Math.max(reach[i][n - 1], now[i]);
+    }
+    swap = was; was = now; now = swap;
+  }
+  var stride = F(DTF * vmax);   // the most px one frame covers
+  return function (p, goal) {
+    // Whole px still to go, then that as a distance in the game's sub-pixel terms: a frame that moves you
+    // right leaves a leftover (remX) of -0.5 to 0.5, one that moves you left -1.5 to -0.5.
+    var hw = P.hitW / 2, need, u;
+    if (p.x + hw <= goal.x0) { need = Math.floor(goal.x0 - hw - p.x) + 0.5 - p.remX; u = p.vx; }
+    else if (p.x - hw >= goal.x1) { need = Math.floor(p.x - hw - goal.x1) + 1.5 + p.remX; u = -p.vx; }
+    else return 0;
+    var k = at.get(u > 0 ? u : 0);
+    if (k === undefined) return 0;
+    var R = reach[k], lo = 1, hi = RUN_FRAMES;
+    need -= 0.001;   // room for the 32-bit rounding of the leftover
+    if (R[hi] < need) return hi + Math.ceil((need - R[hi]) / stride - 1e-9);
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (R[mid] >= need) hi = mid; else lo = mid + 1; }
+    return lo;
+  };
+}
 
 // A guide for the first-route search: roughly how long it takes to get from each spot to the goal going
 // round the level's blocks, not straight at it. It's a grid of 8 px cells, open where the tile is empty
@@ -466,13 +539,18 @@ function guideField(w, P, goal, B) {
 
 /* ---------- route checker: weighted A* over physics states ----------
    Inputs change every K game frames (K = INPUT_STEPS = 1: the game reads keys once a frame).
-   Six choices each time: run left / none / right, with jump held or not.
+   Six choices each time: run left / none / right, with jump held or not (one that makes the very same
+   frame as another is skipped).
    States that land in the same small cell (cellPx, cellSpeed, same flags) are merged, which is
    what lets the search run out of new states and report that no route exists.
    With opts.fastest it finds the fastest route instead of the first one. It merges only identical
-   states, so nothing is lost, runs plain A* with minTimeTo (which never overestimates) as the
-   heuristic, and keeps going after a route until nothing left could beat the best one by a physics
-   step. That route is then the fastest there is with inputs every K steps, inside opts.bounds.
+   states, so nothing is lost, runs plain A* with minTimeTo (which never overestimates), rounded up to
+   whole frames, and on a plain level runTable's frame count, as the heuristic, and keeps going after a
+   route until nothing left could beat the best one by a physics step. That route is then the fastest
+   there is with inputs every K steps, inside opts.bounds.
+   With opts.swap the water item can be changed on the way too (see modChanged): a change is one more
+   choice, open once the wait since the last one is over. It takes no frame and shows up in the route's
+   actions as 6 to 10.
    opts.bound = { time, actions } is a route found earlier to beat, which keeps the search small. */
 function solveRoute(w, P, start, goal, opts) {
   var search = makeSearch(w, P, start, goal, opts), r;
@@ -496,9 +574,10 @@ function makeSearch(w, P, start, goal, opts) {
   var hw = P.hitW / 2, hh = P.hitH;
   // Which of the special tiles the level has: without them the search is exactly what it was.
   // hasFallJump: a field or water, where a press while falling jumps.
-  var hasFallJump = false, ups = { conveyor: false, bumper: false, trampoline: false };
+  var hasFallJump = false, hasWater = false, ups = { conveyor: false, bumper: false, trampoline: false };
   for (var wi = 0; wi < w.map.length; wi++) {
     if (w.map[wi] === FIELD || w.water[wi] === 1) hasFallJump = true;
+    if (w.water[wi] === 1) hasWater = true;
     if (w.map[wi] === CONVEYOR) ups.conveyor = true;   // a conveyor can hold water too, so no else
     if (w.map[wi] === BUMPER) ups.bumper = true;
     if (w.map[wi] === MUSHROOM || w.map[wi] === BOARD) ups.trampoline = true;
@@ -506,20 +585,35 @@ function makeSearch(w, P, start, goal, opts) {
   // With wings, holding jump through a landing on a trampoline can't be had by letting go and pressing later:
   // that press would spend the air jump the landing gave back. So holding is never skipped on such levels.
   var holdMatters = P.parasol || (ups.trampoline && P.doubleJump);
+  // For skipping a run key that does the same as another (see expand). That needs an input every frame (a
+  // longer hold can run into where the keys differ) and braking as strong as speeding up. brake is one
+  // frame's braking; runMax is top speed, and out of reach on a level with water, where top speed changes.
+  // ponytail: nothing is skipped with inputs every 2 frames or more, and the top-speed half is off on any
+  // level with water. Checking the frames of a hold, and the tile the middle is in, would lift both.
+  var sameKeys = K === 1 && P.runAccel === P.runDecel, brake = F(DTF * P.runDecel), runMax = hasWater ? Infinity : topSpeed(P);
+  // The fastest-route search's frame count for the run, on a plain level (see runTable).
+  // ponytail: off on a level with a field or a trampoline too, which don't touch the run; it was only
+  // checked against routes on plain levels. The same check on such levels would let it be switched on there.
+  var runFrames = fastest && !hasFallJump && !ups.conveyor && !ups.bumper && !ups.trampoline ? runTable(P) : null;
   var guide = explore || fastest || opts.guide === false ? null : guideField(w, P, goal, B);
+  // opts.swap: the water item can be changed on the way (see modChanged). A state then also has the item
+  // worn (s.item, kept with its yes/no parts) and the frames until the next change is allowed (s.wait), and
+  // is stepped with PW[s.item], which is P wearing that item. Without it, item and wait stay 0.
+  var swap = !!opts.swap, WAIT = swap ? modCooldown() : 0, PW = null;
+  if (swap) PW = [0, 1, 2, 3].map(function (n) { var q = {}; for (var k in P) q[k] = P[k]; q.waterItem = n; return q; });
   // node storage in typed arrays
   var cap = 1 << 16;
   var NX = new Float64Array(cap), NY = new Float64Array(cap), NVX = new Float64Array(cap),
       NVY = new Float64Array(cap), NRX = new Float64Array(cap), NRY = new Float64Array(cap), NF = new Uint8Array(cap),
-      NP = new Int32Array(cap), NA = new Int8Array(cap), NG = new Float64Array(cap), NT = new Uint8Array(cap);
-  var floatGear = P.waterItem === 1 || P.waterItem === 2;   // the float item's time is part of the state only then
+      NP = new Int32Array(cap), NA = new Int8Array(cap), NG = new Float64Array(cap), NT = new Uint8Array(cap), NW = new Uint8Array(cap);
+  var floatGear = P.waterItem === 2 || (swap && hasWater);   // whether a float is still to be had is part of the state only then
   var count = 0;
   // binary min-heap of (f, node)
   var HF = new Float64Array(cap), HI = new Int32Array(cap), hsize = 0, popF = 0;
   function grow() {
     var c2 = Math.min(maxNodes, cap * 2);
     function g(a) { var b = new a.constructor(c2); b.set(a); return b; }
-    NX = g(NX); NY = g(NY); NVX = g(NVX); NVY = g(NVY); NRX = g(NRX); NRY = g(NRY); NF = g(NF); NP = g(NP); NA = g(NA); NG = g(NG); NT = g(NT);
+    NX = g(NX); NY = g(NY); NVX = g(NVX); NVY = g(NVY); NRX = g(NRX); NRY = g(NRY); NF = g(NF); NP = g(NP); NA = g(NA); NG = g(NG); NT = g(NT); NW = g(NW);
     HF = g(HF); HI = g(HI); cap = c2;
   }
   function hpush(f, i) {
@@ -543,7 +637,9 @@ function makeSearch(w, P, start, goal, opts) {
   }
   // closed set: open-addressing hash of keys in two parts, kHi (stored +1 so 0 means empty) and kLo, each an
   // integer a double holds exactly
-  var SCAP = 1 << 17, SMASK = SCAP - 1, SK = new Float64Array(SCAP), SL = new Float64Array(SCAP), SN = 0;
+  // SW is the least wait a cell was reached with: a state that can change its water item sooner can do
+  // all that one in the same cell with a longer wait can, so it gets in again; the other way round it doesn't.
+  var SCAP = 1 << 17, SMASK = SCAP - 1, SK = new Float64Array(SCAP), SL = new Float64Array(SCAP), SW = new Uint8Array(SCAP), SN = 0;
   function sHash(k, l) {
     var h = Math.imul((k % 4294967296) ^ Math.imul((k / 4294967296) | 0, 0x27d4eb2d), 0x9e3779b1);
     h ^= Math.imul((l % 4294967296) ^ Math.imul((l / 4294967296) | 0, 0x165667b1), 0x85ebca6b);
@@ -551,21 +647,21 @@ function makeSearch(w, P, start, goal, opts) {
     return h;
   }
   function sGrow() {
-    var oldK = SK, oldL = SL; SCAP *= 2; SMASK = SCAP - 1; SK = new Float64Array(SCAP); SL = new Float64Array(SCAP);
+    var oldK = SK, oldL = SL, oldW = SW; SCAP *= 2; SMASK = SCAP - 1; SK = new Float64Array(SCAP); SL = new Float64Array(SCAP); SW = new Uint8Array(SCAP);
     for (var j = 0; j < oldK.length; j++) {
       var v = oldK[j];
-      if (v !== 0) { var i = sHash(v, oldL[j]) & SMASK; while (SK[i] !== 0) i = (i + 1) & SMASK; SK[i] = v; SL[i] = oldL[j]; }
+      if (v !== 0) { var i = sHash(v, oldL[j]) & SMASK; while (SK[i] !== 0) i = (i + 1) & SMASK; SK[i] = v; SL[i] = oldL[j]; SW[i] = oldW[j]; }
     }
   }
-  function sAdd(s) {   // true if the state's cell (keyOf) was new
+  function sAdd(s) {   // true if the state's cell (keyOf) was new, or is reached with a shorter wait than before
     keyOf(s);
     var k = kHi + 1, l = kLo;
     if (SN * 2 >= SCAP) sGrow();
     var i = sHash(k, l) & SMASK;
     for (;;) {
       var v = SK[i];
-      if (v === 0) { SK[i] = k; SL[i] = l; SN++; return true; }
-      if (v === k && SL[i] === l) return false;
+      if (v === 0) { SK[i] = k; SL[i] = l; SW[i] = s.wait; SN++; return true; }
+      if (v === k && SL[i] === l) { if (s.wait >= SW[i]) return false; SW[i] = s.wait; return true; }
       i = (i + 1) & SMASK;
     }
   }
@@ -578,38 +674,45 @@ function makeSearch(w, P, start, goal, opts) {
     var oT = ET, oH = EH; ECAP *= 2; ET = new Int32Array(ECAP); EH = new Int32Array(ECAP);
     for (var j = 0; j < oT.length; j++) if (oT[j]) { var i = oH[j] & (ECAP - 1); while (ET[i]) i = (i + 1) & (ECAP - 1); ET[i] = oT[j]; EH[i] = oH[j]; }
   }
-  // The state's yes/no parts as one number: what's stored per node, and part of both kinds of key.
+  // The state's yes/no parts as one number, with the water item worn in the top two bits: what's stored per
+  // node, and part of both kinds of key.
   function flagsOf(s) {
-    return (s.onGround ? 1 : 0) | (s.prevJump ? 2 : 0) | (s.airJump ? 4 : 0) | (s.slippery ? 8 : 0) | (s.jumpLost ? 16 : 0) | (s.spawnJump ? 32 : 0);
+    return (s.onGround ? 1 : 0) | (s.prevJump ? 2 : 0) | (s.airJump ? 4 : 0) | (s.slippery ? 8 : 0) | (s.jumpLost ? 16 : 0) | (s.spawnJump ? 32 : 0) | (s.item << 6);
   }
   // Looks up state s: returns the node holding it (-1 if none) and leaves its slot in eSlot.
+  // The wait is part of what makes a state the same here: one reached later with a shorter wait is another state.
   function eFind(s) {
     if (EN * 2 >= ECAP) eGrow();
     var fl = flagsOf(s);
-    var hs = fmix(fmix(fmix(fmix(fmix(fmix(fmix(fl + 1, s.x), s.y), s.vx), s.vy), s.remX), s.remY), s.floatF), i = hs & (ECAP - 1);
+    var hs = fmix(fmix(fmix(fmix(fmix(fmix(fmix(fl + 1 + s.wait * 256, s.x), s.y), s.vx), s.vy), s.remX), s.remY), s.floatF), i = hs & (ECAP - 1);
     for (;;) {
       var e = ET[i] - 1;
       if (e < 0) { eSlot = i; EH[i] = hs; return -1; }
       if (EH[i] === hs && NF[e] === fl && NX[e] === s.x && NY[e] === s.y && NVX[e] === s.vx && NVY[e] === s.vy && NRX[e] === s.remX && NRY[e] === s.remY &&
-          NT[e] === s.floatF) { eSlot = i; return e; }
+          NT[e] === s.floatF && NW[e] === s.wait) { eSlot = i; return e; }
       i = (i + 1) & (ECAP - 1);
     }
   }
   var QP = opts.cellPx || 2, QV = opts.cellSpeed || 20, QYOFF = Math.ceil(4096 / QP);
   // The state's cell, in two integers: kHi is where it is, kLo the rest (speeds, the yes/no parts and, only when
-  // the level or the gear makes them matter, the float item's time in 13-frame steps).
+  // the level or the gear makes it matter, whether a Jet Ski's float is still to be had).
   var kHi = 0, kLo = 0;
   function keyOf(s) {
     var qx = Math.round(s.x / QP) + 64, qy = Math.min(8191, Math.max(0, Math.round(s.y / QP) + QYOFF));
     var qvx = Math.round(s.vx / QV) + 64;
     var qvy = s.onGround ? 0 : Math.round(s.vy / QV) + 128;
-    var fb = floatGear ? (s.floatF === FLOAT_NO_LIMIT ? 15 : Math.min(14, (s.floatF / 13) | 0)) : 0;
+    // (with water item changes the float only counts while a Jet Ski is worn)
+    var fb = floatGear && (!swap || s.item === 2) && s.floatF ? 1 : 0;
     kHi = qx * 8192 + qy;
-    kLo = ((qvx * 512 + qvy) * 128 + flagsOf(s)) * 16 + fb;
+    kLo = ((qvx * 512 + qvy) * 256 + flagsOf(s)) * 16 + fb;
   }
   function h(s) {
     if (explore) return 0;
-    if (fastest) return minTimeTo(s, goal, P, ups);
+    if (fastest) {
+      // A route is a whole number of frames, so the bound is rounded up to one (less a hair, for the division).
+      var fr = Math.ceil(minTimeTo(s, goal, P, ups) / DT - 1e-9), rf = runFrames ? runFrames(s, goal) : 0;
+      return (rf > fr ? rf : fr) * DT;
+    }
     var dx = Math.max(0, goal.x0 - (s.x + hw), (s.x - hw) - goal.x1);
     var top = s.y - hh, gy = goal.kind === "stand" ? goal.y : goal.y1;
     var dyUp = Math.max(0, (goal.kind === "stand" ? s.y - goal.y : top - gy));
@@ -622,13 +725,13 @@ function makeSearch(w, P, start, goal, opts) {
     if (count >= cap) grow();
     var i = count++;
     NX[i] = s.x; NY[i] = s.y; NVX[i] = s.vx; NVY[i] = s.vy; NRX[i] = s.remX; NRY[i] = s.remY;
-    NF[i] = flagsOf(s); NT[i] = s.floatF;
+    NF[i] = flagsOf(s); NT[i] = s.floatF; NW[i] = s.wait;
     NP[i] = parent; NA[i] = a; NG[i] = g;
     return i;
   }
   function load(i, s) {
-    s.x = NX[i]; s.y = NY[i]; s.vx = NVX[i]; s.vy = NVY[i]; s.remX = NRX[i]; s.remY = NRY[i]; s.floatF = NT[i];
-    var f = NF[i]; s.onGround = !!(f & 1); s.prevJump = !!(f & 2); s.airJump = !!(f & 4); s.slippery = !!(f & 8); s.jumpLost = !!(f & 16); s.spawnJump = !!(f & 32); s.holding = false;
+    s.x = NX[i]; s.y = NY[i]; s.vx = NVX[i]; s.vy = NVY[i]; s.remX = NRX[i]; s.remY = NRY[i]; s.floatF = NT[i]; s.wait = NW[i];
+    var f = NF[i]; s.onGround = !!(f & 1); s.prevJump = !!(f & 2); s.airJump = !!(f & 4); s.slippery = !!(f & 8); s.jumpLost = !!(f & 16); s.spawnJump = !!(f & 32); s.item = f >> 6; s.holding = false;
   }
   function path(i, lastA) {
     var acts = []; if (lastA != null) acts.push(lastA);
@@ -641,12 +744,14 @@ function makeSearch(w, P, start, goal, opts) {
   // settle onto the floor so the first state is exactly what the game spawns into
   step(s0, { left: false, right: false, jump: false, jumpPressed: false }, P, w);
   s0.prevJump = false;
+  s0.item = swap ? P.waterItem : 0; s0.wait = 0;
   var root = store(s0, -1, -1, 0);
   if (fastest) { eFind(s0); ET[eSlot] = root + 1; EN++; } else sAdd(s0);
   hpush(h(s0), root);
   var stand = explore ? new Set() : null;
   var best = { h: h(s0), i: root }, expansions = 0;
   var S1 = makePlayer(0, 0), S2 = makePlayer(0, 0), INP = { left: false, right: false, jump: false, jumpPressed: false };
+  S1.item = S1.wait = S2.item = S2.wait = 0;
   var result = null;
   // Fastest mode's answer. optimal: nothing left can beat the route (else the budget ran out, and
   // lowerBound is the time any faster route would at least need).
@@ -687,16 +792,44 @@ function makeSearch(w, P, start, goal, opts) {
     // reaches the same spot and can press sooner, so holding is skipped there.
     var holdUseless = !holdMatters && s.vy >= 0 && (s.onGround ? s.prevJump
       : s.prevJump || !(s.airJump || s.spawnJump || (hasFallJump && jumpsFalling(w, s.x, s.y - hh / 2))));
+    // Two run keys that leave the same speed make the very same frame, so the later one is skipped. Running
+    // faster than one frame's braking, the key against the run brakes just as no key does; at top speed the
+    // key along it can't add any, so it brakes too. Not when slippery: no key doesn't brake there.
+    var same = sameKeys && !s.slippery, noKeySame = same && (s.vx < -brake || s.vx >= runMax), leftSame = same && (s.vx > brake || s.vx <= -runMax);
+    // A water item change, once the wait is over: the same state at the same time, wearing another item, with
+    // the air jump gone and the wait started again (action 6 + item). On a level with no water every change
+    // does the same, and nothing at all without an air jump to lose, so there it is one action (10), tried
+    // only when there is one.
+    if (swap && s.wait === 0 && (hasWater || s.airJump)) {
+      var hs = h(s);
+      if (!fastest || NG[idx] + hs <= bestT - HALF) for (var it = hasWater ? 0 : 4; it <= (hasWater ? 3 : 4) && count < maxNodes; it++) {
+        if (it === s.item || it === 1) continue;   // (there is no water item 1)
+        n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.onGround = s.onGround;
+        n.prevJump = s.prevJump; n.airJump = s.airJump; n.slippery = s.slippery; n.jumpLost = s.jumpLost; n.spawnJump = s.spawnJump;
+        n.item = it < 4 ? it : s.item; n.wait = WAIT;
+        modChanged(n);
+        if (fastest) { var es = eFind(n); if (es >= 0 && NG[es] <= NG[idx] + HALF) continue; }
+        else if (!sAdd(n)) continue;
+        var nsw = store(n, idx, 6 + it, NG[idx]);
+        if (fastest) { ET[eSlot] = nsw + 1; if (es < 0) EN++; }
+        // ponytail: a first-route search looks at a change SWAP_NUDGE seconds late, so that a route that needs
+        // none is found first. A plain guess; a count of changes in the search order would do it properly.
+        hpush(NG[idx] + weight * hs + (fastest ? 0 : SWAP_NUDGE), nsw);
+      }
+    }
+    var Pn = swap ? PW[s.item] : P;
     for (var a = 0; a < 6; a++) {
       var dir = ACT_DIR[a], jump = ACT_JUMP[a];
       if (jump && holdUseless) continue;
+      if (dir === 0 ? noKeySame : dir < 0 && leftSame) continue;
       n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.dead = false; n.onGround = s.onGround;
       n.prevJump = s.prevJump; n.holding = s.holding; n.airJump = s.airJump; n.slippery = s.slippery; n.jumpLost = s.jumpLost; n.spawnJump = s.spawnJump;
+      n.item = s.item; n.wait = s.wait > K ? s.wait - K : 0;
       var dead = false, reached = false;
       for (var k = 0; k < K; k++) {
         inp.left = dir < 0; inp.right = dir > 0; inp.jump = !!jump;
         inp.jumpPressed = k === 0 && !!jump && !s.prevJump;
-        step(n, inp, P, w);
+        step(n, inp, Pn, w);
         if (died(w, P, n)) { dead = true; break; }
         if (goal && goalReached(n, goal, P)) { reached = true; break; }
       }
@@ -706,8 +839,10 @@ function makeSearch(w, P, start, goal, opts) {
       var g = NG[idx] + K * DT;
       if (reached) {
         var t = NG[idx] + (k + 1) * DT;   // the step it got there
-        if (!fastest) return (result = { found: true, actions: path(idx, a), time: t, expansions: expansions, nodes: count, K: K });
-        if (t < bestT - HALF) { bestT = t; bestActs = path(idx, a); if (onBetter) onBetter(bestActs, bestT); }
+        var acts = path(idx, a);
+        if (swap) { var trim = trimChanges(w, P, start, acts, K, goal); acts = trim.actions; t = trim.time; }
+        if (!fastest) return (result = { found: true, actions: acts, time: t, expansions: expansions, nodes: count, K: K, swap: swap });
+        if (t < bestT - HALF) { bestT = t; bestActs = acts; if (onBetter) onBetter(bestActs, bestT); }
         continue;
       }
       if (count >= maxNodes) return fastest ? fastestDone(false) : (result = { found: false, exhausted: false, expansions: expansions, nodes: count, closest: path(best.i), closestH: best.h, K: K, stand: stand });
@@ -732,7 +867,7 @@ function makeSearch(w, P, start, goal, opts) {
 
 // The page's checker settings, finest first. Each pass merges states that land in the same cell, so a
 // finer one keeps more routes alive and costs more. weights are the A* weights it tries in turn (see
-// makePasses); a spread of them is what lets a coarse pass that ran dry get a second and third look.
+// makePasses); a spread of them is what lets a pass that found nothing get a second and third look.
 var CHECK_PASSES = [
   { cellPx: 1, cellSpeed: 10, maxNodes: 1500000, weights: [2.5] },
   { cellPx: 2, cellSpeed: 20, maxNodes: 2500000, weights: [1.6, 3, 6] },
@@ -748,9 +883,10 @@ function unlimitedPasses(passes) {
    Passes come finest first but run coarsest first. The coarse ones are quick and find most routes, and a
    route found at any precision is real: replayRoute plays it in the game. Only the finest pass can prove a
    level impossible. A coarse pass that runs dry has merged states, so a route with less to spare than its
-   cells could be lost with them, in a level with a thin window. So a dry coarse pass gets another go with
-   the next weight in its list (another order to search in, so other states survive the merging) before the
-   next finer pass starts. The answer:
+   cells could be lost with them, in a level with a thin window. And one that runs out of room hasn't looked
+   everywhere. So a pass that found nothing, either way, gets another go with the next weight in its list
+   (another order to search in: other states survive the merging, and a heavier weight heads for the goal
+   sooner, so it can fit where a lighter one didn't) before the next finer pass starts. The answer:
      found            a route (res.pass says which pass found it)
      exhausted, cellPx <= 1   the finest pass ran dry: nothing reaches the goal, proven
      exhausted, coarser       only a coarser pass ran dry; the finest ran out of room (res.finer says how far
@@ -782,10 +918,8 @@ function makePasses(w, P, start, goal, bounds, passes, onProgress) {
       res.pass = at; res.cellPx = p.cellPx; res.cellSpeed = p.cellSpeed;
       if (res.closestH < closestH) { closestH = res.closestH; closest = res.closest; }
       if (res.found || (res.exhausted && at === 0)) return finish(res);   // a route, or a proof
-      if (res.exhausted) {
-        if (!dry || at < dry.pass) dry = res;   // the finest pass that ran dry
-        if (p.weights && attempt + 1 < p.weights.length) { attempt++; search = null; continue; }
-      }
+      if (res.exhausted && (!dry || at < dry.pass)) dry = res;   // the finest pass that ran dry
+      if (p.weights && attempt + 1 < p.weights.length) { attempt++; search = null; continue; }   // dry or out of room: its next weight
       last = res;
       if (at === 0) break;
       at--; attempt = 0; search = null;
@@ -809,19 +943,28 @@ var FASTEST_MAX_NODES = 1500000;
 function fastestOptions(bounds, first, onProgress, onBetter, noLimit) {
   return { fastest: true, maxNodes: noLimit ? Infinity : FASTEST_MAX_NODES, bounds: bounds || null, bound: first && first.found ? { time: first.time, actions: first.actions } : null,
     stepsPerDecision: first && first.found ? first.K : undefined,   // the same input rate as the route it's beating
+    swap: !!(first && first.swap),                                   // and the same say over the water item
     onProgress: onProgress || null, onBetter: onBetter || null };
 }
 
 // Replays an action list through the same physics; returns positions every step and how it ended.
+// mods: the water item changes in it, as { at: index of the point it happened at, item: the one worn after }.
 function replayRoute(w, P, start, actions, K, goal) {
   var p = makePlayer(start.x, start.y);
   step(p, { left: false, right: false, jump: false, jumpPressed: false }, P, w);
   p.prevJump = false;
-  var pts = [[p.x, p.y]], jumps = 0, airJumps = 0, airAt = [], end = "ran out";
+  var pts = [[p.x, p.y]], jumps = 0, airJumps = 0, airAt = [], mods = [], end = "ran out";
   var ACT_DIR = [1, 1, 0, 0, -1, -1], ACT_JUMP = [0, 1, 0, 1, 0, 1];
   outer:
   for (var d = 0; d < actions.length; d++) {
     var a = actions[d], dir = ACT_DIR[a], jump = ACT_JUMP[a];
+    if (a >= 6) {   // a water item change: no frame passes
+      var q = {}; for (var key in P) q[key] = P[key];
+      q.waterItem = swapItem(P.waterItem, a);
+      if (q.waterItem === P.waterItem) { end = "no change"; break; }   // the item worn already: not a change (trimChanges tries such lists)
+      P = q; modChanged(p); mods.push({ at: pts.length - 1, item: P.waterItem });
+      continue;
+    }
     for (var k = 0; k < K; k++) {
       var pressed = k === 0 && !!jump && !p.prevJump;
       var was = p.onGround, usedAir = p.airJumps;
@@ -834,5 +977,21 @@ function replayRoute(w, P, start, actions, K, goal) {
     }
     p.prevJump = !!jump;
   }
-  return { pts: pts, jumps: jumps, airJumps: airJumps, airAt: airAt, end: end };
+  return { pts: pts, jumps: jumps, airJumps: airJumps, airAt: airAt, mods: mods, end: end };
+}
+// A route found with water item changes can carry changes it doesn't need: one made on the ground costs
+// nothing, so the search makes them freely. This takes out, one at a time and for as long as one goes, every
+// change the route still reaches the goal without, no later than before. Returns the actions left and the
+// route's time.
+function trimChanges(w, P, start, actions, K, goal) {
+  var frames = replayRoute(w, P, start, actions, K, goal).pts.length;
+  for (var went = true; went;) {
+    went = false;
+    for (var i = actions.length - 1; i >= 0; i--) {
+      if (actions[i] < 6) continue;
+      var cut = actions.slice(0, i).concat(actions.slice(i + 1)), rep = replayRoute(w, P, start, cut, K, goal);
+      if (rep.end === "reached" && rep.pts.length <= frames) { actions = cut; frames = rep.pts.length; went = true; }
+    }
+  }
+  return { actions: actions, time: (frames - 1) * DT };
 }

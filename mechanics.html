@@ -31,6 +31,7 @@
       <h2>Player</h2>
       <a href="#player">The player</a>
       <a href="#gear">Gear</a>
+      <a href="#mods">Changing mods</a>
       <a href="#reach">How far and how high</a>
       <a href="#ledges">Ledges and gaps</a>
       <a href="#ceilings">Ceilings</a>
@@ -605,7 +606,7 @@
         <p class="crumb">Blocks</p>
         <h2>Water</h2>
         <p class="lead">Water isn't a block. It is a flag on a tile, so a tile can be a block and water at once, and you pass through it.</p>
-        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, with float items and floaties as gear. Mud and glue aren't there, so nothing stacks with the water speed yet.</span></p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes for the water itself, with the Jet Ski and floaties as gear. The float items that last 3 s and the Fishing Dinghy: not yet. The route checker can also change the water item on the way when you ask it to: see <a href="#mods">Changing mods</a>. Mud and glue aren't there, so nothing stacks with the water speed yet.</span></p>
 
         <h3>When you count as in water</h3>
         <p>Only the middle point of your box matters. You are in water while that point is in a water tile, which is when you are about half under. The game goes back to normal the first frame it is out.</p>
@@ -637,17 +638,65 @@
         </ul>
 
         <h3>Float items</h3>
-        <p>Surfboards, the Fishing Dinghy, Jet Skis, the Swan Boat and others. They are checked on the frame you enter the water.</p>
+        <p>Surfboards, the Fishing Dinghy, Jet Skis, the Swan Boat and others: the table further down lists them all. They are checked on the frame you enter the water.</p>
         <ul>
           <li>While you float, gravity and the fall cap are both zero, so you stop at the surface, half under.</li>
           <li>With gravity at 0, an upward speed is kept for the whole water column.</li>
           <li>You can jump at any time, not just while sinking, and a jump keeps its full −270 until your middle point leaves the water.</li>
-          <li>Floating ends 3 s after you enter (never for the Fishing Dinghy and the two Jet Skis), or when you touch the ground.</li>
+          <li>Floating ends 3 s after you enter (never for the Fishing Dinghy, the Jet Ski and the Golden Jet Ski), or when you touch the ground. Changing what you wear can end it too: see below.</li>
           <li>The timer restarts each time you come back in, so hopping out and in should keep you afloat.</li>
         </ul>
+        <p class="note">The verifier has the Jet Ski only (it stands for the Golden Jet Ski too): a float with no time limit, which any Gear button ends, and which a water item change by the route checker ends too. The float items that last 3 s and the Fishing Dinghy aren't in it.</p>
+
+        <h3>When a float starts and ends</h3>
+        <p>Floating is a state of its own, kept apart from being in water, and only one thing starts it:</p>
+        <ul>
+          <li><b>It starts on the frame you enter the water:</b> the frame the middle of your body is in a water tile and wasn't on the frame before. On that frame the game looks at what you wear on your feet and in your hand, and starts the float if one of them is a float item.</li>
+          <li><b>Everything else only ends it:</b> the ground, the time running out, and a clothing update that your new outfit doesn't pass.</li>
+          <li><b>So a float item put on while you are already in the water does nothing</b> until the middle of your body leaves the water and comes back in. You have to be out for a frame.</li>
+          <li>A mod change can't stand in for entering the water: neither of the updates it brings touches whether you count as in water. See <a href="#mods">Changing mods</a>.</li>
+        </ul>
+        <p>Each time your clothes change, the game tests the outfit it has just been sent, and ends the float unless the item in your hand or the one on your feet is one of 12 that pass. That test is narrower than the one on entering the water: the Jet Ski and the Golden Jet Ski start a float, but they are not among the 12.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Change while you float</th><th>The float after it</th></tr></thead>
+            <tbody>
+              <tr><td>The float item is taken off</td><td>Ends</td></tr>
+              <tr><td>Another item is changed, and a float item that passes is still worn</td><td>Keeps running</td></tr>
+              <tr><td>One float item that passes is swapped for another</td><td>Keeps running</td></tr>
+              <tr><td>A Jet Ski or a Golden Jet Ski is worn, and anything at all is changed</td><td>Ends, even though the Jet Ski is still on</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>A float that keeps running keeps its clock: the 3 s still count from the frame you entered.</li>
+          <li>The test looks at the hand as well as the feet. So a Jet Ski on your feet with a Surfboard in your hand passes, because of the Surfboard.</li>
+          <li>After a Jet Ski's float has ended this way, it takes leaving the water and coming back to float again.</li>
+        </ul>
+
+        <h3>The float items</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Float item</th><th>Worn</th><th>Passes the test on a clothing update</th><th>Time limit</th></tr></thead>
+            <tbody>
+              <tr><td>Surfboard: plain, Flame, Wave and Electric Green (4822, 4824, 4826, 4828)</td><td>Hand</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Fishing Dinghy (6996)</td><td>Feet</td><td>Yes</td><td>None</td></tr>
+              <tr><td>Go Anywhere Surfboard (9648)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Jet Ski Chariot (10390)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Cardboard Nessie (10688)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Swan Boat (11670)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Boots of Deepest Winter (12888)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>The Oillipheist (13322)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Wind Surfer (13604)</td><td>Feet</td><td>Yes</td><td>3 s</td></tr>
+              <tr><td>Jet Ski (7518)</td><td>Feet</td><td>No</td><td>None</td></tr>
+              <tr><td>Golden Jet Ski (7530)</td><td>Feet</td><td>No</td><td>None</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The Jet Ski Chariot is not like the other two Jet Skis: it passes the test, and its float ends after 3 s.</p>
 
         <h3>Floaties</h3>
-        <p>The Sea Monster Floatie, Water Wings, Flaming Floaties and the Unicorn Floatie.</p>
+        <p>The Sea Monster Floatie (1666) and the Unicorn Floatie (7516), worn on the neck, and Water Wings (1668) and Flaming Floaties (6320), worn in the hand.</p>
         <ul>
           <li><b>Sinking:</b> your speed is cut to 40 px/s and you are pushed up at 320 px/s², so you sink only about 2 to 3 px.</li>
           <li><b>Rising:</b> a gentle upward push of 12 px/s², with upward speed capped at 120 px/s.</li>
@@ -1154,17 +1203,17 @@
         <p class="crumb">Player</p>
         <h2>Gear</h2>
         <p class="lead">Items change a few numbers. Some are read from the code and some are only known by measuring.</p>
-        <p class="status" data-in="part"><span><b>In the verifier:</b> Double Jump, the parasol, 3 speed items, High Jump, float items and floaties, as the buttons under Gear. Climbing gear, slippery and grip gear, Snowshoes and auto-run items: not yet.</span></p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> Double Jump, the parasol, 3 speed items, High Jump, the Jet Ski and floaties, as the buttons under Gear. The other float items, climbing gear, slippery and grip gear, Snowshoes and auto-run items: not yet.</span></p>
 
         <div class="tablewrap">
           <table>
             <thead><tr><th>Gear</th><th>What it does</th></tr></thead>
             <tbody>
-              <tr><td>Double Jump (wings)</td><td>Landing stores one air jump and using it clears it. The air jump sets your upward speed the same as a ground jump (−450, or −270 under the × 0.6 conditions). A jump on the ledge grace frame clears it too, so with Double Jump the grace frame gives nothing extra: one press, one jump, air jump gone. See <a href="#ledges">Ledges and gaps</a>.</td></tr>
+              <tr><td>Double Jump (wings)</td><td>Landing stores one air jump and using it clears it. The air jump sets your upward speed the same as a ground jump (−450, or −270 under the × 0.6 conditions). A jump on the ledge grace frame clears it too, so with Double Jump the grace frame gives nothing extra: one press, one jump, air jump gone. See <a href="#ledges">Ledges and gaps</a>. Changing a mod clears it as well: see <a href="#mods">Changing mods</a>.</td></tr>
               <tr><td>Slow fall: parasols and glide items</td><td>Gravity × 0.3 for the frame when you are falling, jump is held, you are not in water, and a trigger item is worn. A fresh press in the air spends the air jump before it can glide. Holding from the first jump glides without spending it. The fall cap stays 400, so with default gravity it is 300 px/s². Several triggers don't stack. The report lists 13 parasol-type items (Parasol 1020, Oil-paper Umbrella 7034, Magic Carpet 7144 and others) and 23 glide-type items (Soda Jetpack 1762, Legendary Wings 1784, Da Vinci Wings 8286 and others). The one item check that hadn't been decoded is the four Morty elephants: Morty the Gray, Orange, Pink and Diamond Elephant (7836, 7838, 7840, 7842). With them the glide lists are complete.</td></tr>
               <tr><td>Speed items</td><td>The client doesn't compute them: the server sends the speed. With 3 items it comes out at about 1.75 times the base speed, from testing.</td></tr>
               <tr><td>High jump</td><td>The jump code has no high jump multiplier, so it arrives as a changed gravity from the server. Measured: about 713 px/s². The verifier uses × 0.713.</td></tr>
-              <tr><td>Float items, floaties</td><td>See <a href="#water">Water</a>. The verifier lets you wear one of them at a time, because the notes don't say how they combine.</td></tr>
+              <tr><td>Float items, floaties</td><td>See <a href="#water">Water</a>. The verifier has the Jet Ski and floaties, and lets you wear one of them at a time, because the notes don't say how they combine.</td></tr>
               <tr><td>Climbing gear</td><td>Lets you hang on a wall where a climbing tile sits behind you. See <a href="#climbing">Wall climbing</a>. One item is enough: Climbing Picks (3588), Claws of Barko (8042), Climbing Boots (3590), S.P.I.D.E.R. Legs (8018), Tarantula Legs (9034), Mountain Boots (5440), Ezio's Boots (7094), Will of the Wild (5712, only in one of its states), or any item marked as climbing gear in the item list.</td></tr>
               <tr><td>Slippery gear</td><td>Makes every floor slippery: Slippery Chemical Coat (9078), Bob The Gross Blob (8374), Sledding Penguin (10404), Chilled Chucks (14076), Abominable Snowman Suit (7408) together with Abominable Snowman Mask (7410), or any item marked that way in the item list. See <a href="#surfaces">Ice and slow ground</a>.</td></tr>
               <tr><td>Grip gear</td><td>Cancels slippery everywhere: Ice Skates of Winter (5418), or any item marked that way in the item list.</td></tr>
@@ -1173,6 +1222,72 @@
             </tbody>
           </table>
         </div>
+      </article>
+
+      <article class="topic" id="mods" data-title="Changing mods">
+        <p class="crumb">Player</p>
+        <h2>Changing mods</h2>
+        <p class="lead">Putting an item on or taking one off changes your mods, and every such change takes away your stored double jump. In the air it stays gone until you land.</p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> yes when you play: a Gear button takes the stored air jump away at once, and ends a Jet Ski's float. In the route checker only for the water items, and only with "Water items can be changed on the way" ticked. It may then put one on, take it off or swap it on any frame, at least 21 frames after the last change (20 in 17 ms frames), and each change costs the air jump. The other gear stays as ticked for a whole route. The checker picks the frame a change lands on, and doesn't work out the wait for the server.</span></p>
+
+        <h3>What you see</h3>
+        <ul>
+          <li><b>On the ground</b> a mod change costs nothing. The ground check stores the air jump again on the next frame.</li>
+          <li><b>In the air</b> the double jump is gone until you land. That is so even when the item has nothing to do with Double Jump, as long as it changes a mod.</li>
+          <li><b>Putting a Double Jump item on in the air</b> gives no air jump either. The update that turns Double Jump on is the same one that clears the stored jump.</li>
+          <li>With the stored jump gone, a jump press in the air does nothing. The mid-air jumps that don't need it still work: see "When a press jumps" under <a href="#player">The player</a>.</li>
+        </ul>
+
+        <h3>Why</h3>
+        <p>The game keeps the double jump as one stored <b>air jump</b>. Only five things ever change it:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>When</th><th>The stored air jump</th></tr></thead>
+            <tbody>
+              <tr><td>A player is created</td><td>Empty</td></tr>
+              <tr><td>The ground check finds you on the ground</td><td>Stored, but only with Double Jump</td></tr>
+              <tr><td>A press jumps in one of the special mid-air cases: in an <a href="#antigravity">Antigravity Field</a>, or with the Antigravity Generator on (see <a href="#low-gravity">Low gravity</a>)</td><td>Stored just before the jump</td></tr>
+              <tr><td>An air jump or a ledge grace jump fires</td><td>Emptied</td></tr>
+              <tr><td>The server's update of your character's state arrives</td><td>Emptied, always</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The last row is the cause. When the server answers a mod change it sends your character's state again. The game takes in the new mods and then clears the stored air jump, without looking at what changed. It doesn't check whether you still have Double Jump.</p>
+        <p>The message that changes the clothes you are seen in is a separate one, and it leaves the air jump alone.</p>
+
+        <h3>Sending a change</h3>
+        <ul>
+          <li><b>Each change takes two taps:</b> one to select the item, and one on the selected item to wear it or take it off. After a change is sent the selection goes back to the Fist, so the next change needs both taps again.</li>
+          <li><b>The game sends a change at most once every 333 ms.</b> A tap inside that time is dropped, not kept for later.</li>
+          <li><b>The wait is shared by every item.</b> Going back and forth between two items doesn't get around it.</li>
+          <li><b>Nothing changes on the frame of the tap.</b> The game sends the request at once and waits. Your mods and your stored air jump only change when the server's answer arrives, so a change lands one trip to the server and back after the tap.</li>
+        </ul>
+        <p>The game counts that time in whole frames (see <a href="#frame-time">63fps, Frame time and frame rate</a>), so the 333 ms comes out as a number of frames:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Frame length</th><th class="num">Frames until the next change can be sent</th></tr></thead>
+            <tbody>
+              <tr><td>Every frame 16 ms</td><td class="num">21 (336 ms)</td></tr>
+              <tr><td>Every frame 17 ms</td><td class="num">20 (340 ms)</td></tr>
+              <tr><td>A mix of 16 and 17 ms</td><td class="num">20, or 21 when the last two frames are both 16 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Odd cases</h3>
+        <ul>
+          <li><b>Answers aren't held back.</b> Each frame the game takes in every state update that has arrived, however many there are. Two can land in the same frame, and one a frame for many frames in a row would all be taken.</li>
+          <li><b>With a parasol or a glide item,</b> holding jump after the change glides at once. There is no air jump left for the press to spend first. See <a href="#gear">Gear</a>.</li>
+          <li><b>A float item put on in the water</b> does nothing until the middle of your body leaves the water and comes back in. Floating only starts on the frame you enter the water, and a mod change doesn't count as entering. See <a href="#water">Water</a>.</li>
+          <li><b>A change can end a float that is running.</b> With a Jet Ski or a Golden Jet Ski any change of clothes ends it, even one that leaves the Jet Ski on. With the other float items it keeps running as long as one of them is still worn after the change. See "When a float starts and ends" under <a href="#water">Water</a>.</li>
+        </ul>
+
+        <h3>Not known</h3>
+        <ul>
+          <li>How long the trip to the server and back takes. It depends on the connection.</li>
+          <li>What else makes the server send a state update. Anything that does clears the stored air jump the same way.</li>
+          <li>Whether a mod change takes away the second jump you have right after a checkpoint. The verifier leaves it.</li>
+        </ul>
       </article>
 
       <article class="topic" id="reach" data-title="How far and how high">
@@ -1395,7 +1510,8 @@
               <tr><td>Edge jump</td><td>A ground jump pressed on the last frame any of your box is still over the block.</td></tr>
               <tr><td>Ledge grace</td><td>The one frame after you walk off a ledge in which a press still jumps. It uses up your air jump if you have one.</td></tr>
               <tr><td>Coyote time</td><td>Another name for ledge grace.</td></tr>
-              <tr><td>Air jump</td><td>The one extra jump Double Jump stores. Landing refills it; using it empties it.</td></tr>
+              <tr><td>Air jump</td><td>The one extra jump Double Jump stores. Landing refills it; using it empties it, and so does a mod change.</td></tr>
+              <tr><td>Mod</td><td>An effect an item gives you while you wear it, such as Double Jump. See <a href="#mods">Changing mods</a>.</td></tr>
               <tr><td>Slippery</td><td>No friction and weak steering until you land. Set by bumpers, by ice-type ground and by slippery gear.</td></tr>
               <tr><td>Knockback</td><td>The state a pain block puts you in: weak steering, no friction, heavy gravity, until you land.</td></tr>
               <tr><td>Collision kind</td><td>The number that says which sides of a block stop you.</td></tr>
@@ -1427,6 +1543,8 @@
           <li>The Steam Stomper's cooldown.</li>
           <li>Which fall speed the Lemon Jelly Block uses.</li>
           <li>Which way the arrow of an unflipped One-Way Block points on screen.</li>
+          <li>What, besides a mod change, makes the server send a state update. Each one clears the stored air jump. See <a href="#mods">Changing mods</a>.</li>
+          <li>What else passes the game's float test on a clothing update. Besides the 12 listed items, the item in your hand has a check of its own that hasn't been read. See <a href="#water">Water</a>.</li>
         </ul>
       </article>
 
