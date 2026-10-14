@@ -10,6 +10,8 @@ var T = 32;
 var EMPTY = 0, SOIL = 1, STONE = 2, PLANK = 3, BEDROCK = 4, SPIKE = 5, FIELD = 6, CONVEYOR = 7, BUMPER = 8, WATERFALL = 9;
 var MUSHROOM = 10, BOARD = 11;   // trampolines: a solid block, and a platform (solid only from above)
 var PLATFORM = 12;               // a plain platform: solid only from above, no bounce
+var JELLY = 13;                  // the Lemon Jelly Block: a solid trampoline that bounces by how fast you fell onto it
+var LAVA = 14;                   // lava: a solid block that throws you and puts you in knockback
 var DT = 0.016;      // one game frame. The client's frame time is a whole number of ms (§1): 16 at a steady 63 fps shown, 17 at 59 (mechanics.html#frame-time)
 var INPUT_STEPS = 1;   // frames per input choice in the route checker: the game reads keys once a frame
 var F = Math.fround, DTF = F(DT);
@@ -85,17 +87,39 @@ var PINBALL_SPEED = 500, SLIPPERY_STEER = 0.15, SLIPPERY_BOUNCE = 0.7;
 // and the air jump are left as they are, so the usual jump brake applies to the rise. From the side the
 // Mushroom is an ordinary wall (§7.3).
 var TRAMPOLINE_SPEED = 800;
+// The Lemon Jelly Block (mechanics.html#lemon-jelly) bounces on the same landing as a trampoline, by
+// r = (fall speed / JELLY_FALL)²: the upward speed becomes JELLY_SPEED * r, at least JELLY_MIN, and p.boost
+// starts at r. While you rise, gravity is multiplied by (1 - boost), and the boost by JELLY_DECAY each frame;
+// it ends on the first frame you aren't rising. The fall speed is the one at the end of the frame before (the
+// game reads the copy it keeps for drawing), not held to the fall cap, so a bumper's 500 px/s bounces harder,
+// and lava above it that sends you back down harder still.
+// ponytail: the game caps a bounce at 10,000 px/s with jump held, and where that cap sits isn't known, so
+// it isn't here: only a jelly under lava gets past it, and the rise is then far over the top of the world anyway.
+var JELLY_SPEED = 1200, JELLY_MIN = 531.25, JELLY_FALL = 400, JELLY_DECAY = 0.5625;
+// Lava (§7.2, mechanics.html#lava) acts in both contact tests, from any side, like a bumper. From above or below
+// (the up-and-down test): falling or standing, the upward speed becomes LAVA_UP; rising, it is reversed. A
+// standstill gets a push the way you face, the sideways speed is made at least LAVA_SIDE, you're off the
+// ground and in knockback (p.knockback) until the ground check finds ground. From the side: the sideways speed
+// is reversed and, out of knockback, made at least LAVA_SIDE. A plain wall before it in the test's order sets
+// the speed first. In knockback (§4.2, §4.3, §5.3) gravity gets KNOCKBACK_CUT of P.jumpCut extra (4250) except
+// while rising with jump let go, which already gets all of it; steering is SLIPPERY_STEER as strong, nothing
+// slows you down, and a wall throws you back at KNOCKBACK_BOUNCE of your speed.
+// In the game the server kills you after 5 hits in a row within 5 seconds; the verifier leaves that out on
+// purpose (the user's choice), so here lava never kills.
+var LAVA_UP = 800, LAVA_SIDE = 300, KNOCKBACK_CUT = 0.85, KNOCKBACK_BOUNCE = 0.01;
 function topSpeed(P) { return F(P.runSpeed * (SPEED_ITEMS[P.speedItems] || 1)); }
 function gravityOf(P) { return F(P.highJump ? P.gravity * HIGH_JUMP.gravity : P.gravity); }
 // How far above the higher end a single-jump check searches, in tiles: a full jump (3.3 tiles; 4.6 with
 // the high jump item), twice that with wings, and room to spare. A trampoline held all the way up rises
-// 10 tiles, and more with the high jump item or an air jump at the top.
-function headroomTiles(P, trampolines) {
+// 10 tiles, and more with the high jump item or an air jump at the top. A Lemon Jelly after a full-speed
+// fall rises 24 tiles, 33 with the high jump item.
+function headroomTiles(P, trampolines, jelly) {
+  if (jelly) return 26 + (P.doubleJump ? 4 : 0) + (P.highJump ? 10 : 0);
   if (trampolines) return 12 + (P.doubleJump ? 4 : 0) + (P.highJump ? 4 : 0);
   return (P.doubleJump ? 8 : 6) + (P.highJump ? (P.doubleJump ? 3 : 1) : 0);
 }
 
-function isSolidCode(v) { return (v >= 1 && v <= 4) || v === BUMPER || v === MUSHROOM; }   // blocks that are safe to stand on (a spike is a block too, see touches)
+function isSolidCode(v) { return (v >= 1 && v <= 4) || v === BUMPER || v === MUSHROOM || v === JELLY || v === LAVA; }   // blocks that are safe to stand on (a spike is a block too, see touches)
 function isPassableCode(v) { return v === EMPTY || v === FIELD || v === CONVEYOR || v === WATERFALL || v === BOARD || v === PLATFORM; }   // open air as far as getting through goes (a platform is solid only from above)
 // The index (row * W + column) of the 32 x 32 cell that holds the point (x, y), left and top edges in;
 // -1 outside the level.
@@ -137,8 +161,8 @@ function refreshSpikes(w, x0, y0, x1, y1) {
     }
 }
 // (Which way the teeth point, above, is only for drawing: the whole tile is the spike.)
-// What the box l..r, t..b lies over: 2 if any of its tiles is a spike, else 3 if any is a pinball bumper,
-// else 4 if any is a trampoline, else 1 if any is a block, else 0. (4 is a block too; step looks closer.)
+// What the box l..r, t..b lies over: 2 if any of its tiles is a spike, else 3 if any is a pinball bumper or
+// lava, else 4 if any is a trampoline, else 1 if any is a block, else 0. (3 and 4 are blocks too; step looks closer.)
 // A tile counts only if the box reaches into it; one that just meets the box's edge doesn't (§4.5).
 // Every tile is its full 32 px square, and a spike stops you like any block (§5.2). A field or a
 // conveyor isn't a block here: you go through it (it acts on the box's middle point, see step).
@@ -151,23 +175,27 @@ function touches(w, l, t, r, b, feet) {
   for (var ty = ty0; ty <= ty1; ty++) for (var tx = tx0; tx <= tx1; tx++) {
     var v = w.map[ty * w.W + tx];
     if (v === SPIKE) return 2;
-    if (v === BUMPER) hit = 3;
-    else if (v === MUSHROOM || (v === BOARD && feet <= ty * T)) { if (hit !== 3) hit = 4; }
+    if (v === BUMPER || v === LAVA) hit = 3;
+    else if (v === MUSHROOM || v === JELLY || (v === BOARD && feet <= ty * T)) { if (hit !== 3) hit = 4; }
     else if (hit === 0 && (isSolidCode(v) || (v === PLATFORM && feet <= ty * T))) hit = 1;
   }
   return hit;
 }
 // The tiles of a contact test come in the game's order: column by column, left to right (and, as far as is
 // known, top to bottom inside a column). The first one that acts ends the test. This returns its index, or -1:
-// a spike (it kills), a pinball bumper (it throws you) or, when feet is given, a trampoline (it bounces you).
+// a spike (it kills), a pinball bumper or lava (they throw you) or, when feet is given, a trampoline (it bounces you).
 // feet is the box's bottom before the test, given only to a downward test while you fall or stand, and the
 // trampoline's top has to be at or below it. A tile counts when the box strictly overlaps it, as in touches.
+// contactWall says whether a block that doesn't act came first: in the sideways test it stops you before lava acts.
+var contactWall = false;
 function contactIn(w, l, t, r, b, feet) {
   var tx0 = Math.max(0, Math.floor(l / T)), tx1 = Math.min(w.W - 1, Math.ceil(r / T) - 1);
   var ty0 = Math.max(0, Math.floor(t / T)), ty1 = Math.min(w.H - 1, Math.ceil(b / T) - 1);
+  contactWall = false;
   for (var tx = tx0; tx <= tx1; tx++) for (var ty = ty0; ty <= ty1; ty++) {
     var v = w.map[ty * w.W + tx];
-    if (v === SPIKE || v === BUMPER || ((v === MUSHROOM || v === BOARD) && feet <= ty * T)) return ty * w.W + tx;
+    if (v === SPIKE || v === BUMPER || v === LAVA || ((v === MUSHROOM || v === BOARD || v === JELLY) && feet <= ty * T)) return ty * w.W + tx;
+    if (isSolidCode(v)) contactWall = true;
   }
   return -1;
 }
@@ -196,11 +224,13 @@ function bump(p, w, P, i) {
   p.slippery = true; p.jumpLost = true;
   return true;
 }
-// A launch that takes you off the ground (a bumper, a trampoline): the readout's last jump starts here.
+// A launch that takes you off the ground (a bumper, a trampoline, lava): the readout's last jump starts here.
 function launched(p) {
   if (p.onGround) { p.jumpStartY = p.y; p.apex = 0; p.airTime = 0; p.holdTime = 0; p.jumpT = 0; }
   p.onGround = false;
 }
+// What a plain wall does to the run in the sideways test.
+function wallStop(p) { p.vx = p.slippery ? F(p.vx * F(-SLIPPERY_BOUNCE)) : p.knockback ? F(p.vx * F(-KNOCKBACK_BOUNCE)) : 0; }
 // remX, remY: the part of a pixel not moved yet, carried to the next frame.
 // airJump is the game's one stored air jump: landing fills it with wings, a jump started in a field fills it
 // whatever the gear, and an air jump or a jump on the ledge grace frame empties it. airJumps counts how many
@@ -212,7 +242,7 @@ function makePlayer(x, y) {
   return { x: x, y: y, vx: 0, vy: 0, remX: 0, remY: 0, onGround: true, dead: false, spawnJump: true,
            facing: 1, prevJump: false, airJump: false, airJumps: 0, slippery: false, jumpLost: false, parasolOpen: false, airJumpT: 1,
            jumpStartY: y, apex: 0, airTime: 0, holdTime: 0, holding: false, lastApex: null, lastAir: null, lastHold: null, landT: 1, jumpT: 0,
-           floatF: FLOAT_NO_LIMIT };
+           floatF: FLOAT_NO_LIMIT, boost: 0, knockback: false };
 }
 
 // One game frame. input = { left, right, jump (held), jumpPressed (went down this frame) }
@@ -223,7 +253,7 @@ function step(p, input, P, w) {
   // A fresh spawn has the wings' second jump ready, unless a spike is right under the checkpoint: then
   // the spawn jump is the only one. (A spike under the feet at spawn is 2 px away; 3 px reaches into it.)
   if (p.spawnJump && P.doubleJump && touches(w, p.x - hw, p.y, p.x + hw, p.y + 3) !== 2) p.airJump = true;
-  if (input.jumpPressed) p.jumpLost = false;   // a new press brings back the held state a bumper cleared
+  var vyDrawn = p.vy;   // the speed the frame before ended with: what a Lemon Jelly reads  if (input.jumpPressed) p.jumpLost = false;   // a new press brings back the held state a bumper cleared
   var held = !!input.jump && !p.jumpLost;
   var dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   if (dir !== 0) p.facing = dir;
@@ -244,13 +274,17 @@ function step(p, input, P, w) {
   // the fall cap: a faster fall is cut to it in the first frame in water. Otherwise falls are capped at
   // P.maxFall; the parasol never brakes one that's already faster. Floating takes both to zero, so you
   // stop where the water begins. Floaties replace gravity with an upward push (sinking is cut first).
-  if (p.onGround) { if (p.vy > 0) p.vy = 0; }
+  // A Lemon Jelly's boost (p.boost) takes its share off the rest while you rise, and ends when you don't.
+  // In knockback, any other time, KNOCKBACK_CUT of P.jumpCut is added before the parasol's share is taken.
+  if (p.onGround) { if (p.vy > 0) p.vy = 0; p.boost = 0; }
   else {
     var g = gravityOf(P), cap = P.maxFall;
     if (p.vy < 0 && !held) g = F(g + P.jumpCut);
+    else if (p.knockback) g = F(g + F(KNOCKBACK_CUT * P.jumpCut));
     if (p.vy > 0 && held && P.parasol && !inWater) g = F(g * F(P.glide));
     if (under === FIELD) g = F(g * F(FIELD_GRAVITY));
     if (inWater) { g = F(g * F(WATER_SLOW)); cap = F(cap * WATER_SLOW); }
+    if (p.boost) { if (p.vy >= 0) p.boost = 0; else { g = F(g * F(1 - p.boost)); p.boost = F(p.boost * JELLY_DECAY); } }
     if (floating) { g = 0; cap = 0; }
     else if (floaties) {
       if (p.vy > FLOATIE_SINK) p.vy = FLOATIE_SINK;
@@ -265,11 +299,12 @@ function step(p, input, P, w) {
   // flickers between top speed and one frame of braking below it, and averages a little under it.
   var a = dir * P.runAccel, max = inWater ? F(P.waterSpeed) : topSpeed(P), sped = false;
   // Slippery (after a bumper, until you land): steering is SLIPPERY_STEER while rising, and nothing
-  // slows you down on its own.
+  // slows you down on its own. Knockback (after lava, until you land): the same, rising or falling.
   if (p.slippery && p.vy <= 0) a = F(a * F(SLIPPERY_STEER));
+  if (p.knockback) a = F(a * F(SLIPPERY_STEER));
   if (a > 0 && p.vx < max) { p.vx = F(p.vx + F(DTF * a)); if (p.vx > max) p.vx = max; sped = true; }
   if (a < 0 && p.vx > -max) { p.vx = F(p.vx + F(DTF * a)); if (p.vx < -max) p.vx = -max; sped = true; }
-  if (!sped && p.vx !== 0 && !p.slippery) { var d = F(DTF * P.runDecel); p.vx = p.vx > d ? F(p.vx - d) : p.vx < -d ? F(p.vx + d) : 0; }
+  if (!sped && p.vx !== 0 && !p.slippery && !p.knockback) { var d = F(DTF * P.runDecel); p.vx = p.vx > d ? F(p.vx - d) : p.vx < -d ? F(p.vx + d) : 0; }
   // A conveyor block (not flipped) has the last word on the run: a standstill or a run to the right
   // becomes CONVEYOR_PUSH, cut to top speed; a run to the left is cut to CONVEYOR_BACK.
   if (under === CONVEYOR) {
@@ -286,6 +321,7 @@ function step(p, input, P, w) {
     if (!wasGround) { p.lastApex = p.apex; p.lastAir = p.airTime; p.lastHold = p.holdTime; p.landT = 0; p.holding = false; }
     p.onGround = true; if (P.doubleJump) p.airJump = true;
     p.slippery = false;   // a normal floor ends it (there's no ice here)
+    p.knockback = false;
     p.spawnJump = false;  // you've landed: the spawn's jump is just the ground now
     if (P.waterItem === 2) p.floatF = 0;   // touching ground ends floating
   } else { coyote = wasGround && p.vy >= 0; p.onGround = false; }
@@ -303,13 +339,17 @@ function step(p, input, P, w) {
   if (tY === 0 && p.onGround) tY = 1;
   var bumped = false, hi, hv;
   var c = tX ? touches(w, L + tX, top, L + tX + P.hitW, p.y) : 0;
-  if (c === 2 || c === 3) {   // a spike or a bumper is in the way: which comes first?
+  if (c === 2 || c === 3) {   // a spike, a bumper or lava is in the way: which comes first?
     hi = contactIn(w, L + tX, top, L + tX + P.hitW, p.y);
     hv = w.map[hi];
     if (hv === SPIKE) { p.dead = true; return; }
-    bumped = bump(p, w, P, hi);
+    if (hv === LAVA) {   // from the side
+      if (contactWall) wallStop(p);
+      p.vx = F(-p.vx);
+      if (!p.knockback) p.vx = p.vx < 0 ? Math.min(p.vx, -LAVA_SIDE) : Math.max(p.vx, LAVA_SIDE);
+    } else bumped = bump(p, w, P, hi);
   } else if (c === 1 || c === 4) {   // a wall (a Mushroom is one too)
-    p.vx = p.slippery ? F(p.vx * F(-SLIPPERY_BOUNCE)) : 0;
+    wallStop(p);
   }
   // The downward test comes next and reads the speed as the sideways one left it. A trampoline acts only in
   // this test, while you fall or stand (not rise) with gravity on, and when your feet are at or above its top,
@@ -323,6 +363,15 @@ function step(p, input, P, w) {
     if (hv === SPIKE) { p.dead = true; return; }
     if (hv === BUMPER) { if (bump(p, w, P, hi)) bumped = true; }
     else if (hv === MUSHROOM || hv === BOARD) { p.vy = F(-TRAMPOLINE_SPEED); launched(p); }
+    else if (hv === JELLY) {
+      var r = F(vyDrawn / JELLY_FALL); r = F(r * r);
+      p.vy = F(-Math.max(F(JELLY_SPEED * r), JELLY_MIN)); p.boost = r; launched(p);
+    } else if (hv === LAVA) {   // from above or below
+      p.vy = p.vy >= 0 ? -LAVA_UP : F(-p.vy);
+      if (p.vx === 0) p.vx = p.facing;
+      p.vx = p.vx < 0 ? Math.min(p.vx, -LAVA_SIDE) : Math.max(p.vx, LAVA_SIDE);
+      launched(p); p.knockback = true; coyote = false;
+    }
   }
   if (bumped) coyote = false;
   if (p.jumpLost) held = false;
@@ -352,7 +401,8 @@ function step(p, input, P, w) {
     if (nl < 0 || nl + P.hitW > w.W * T || touches(w, s > 0 ? L + P.hitW : nl, top, s > 0 ? nl + P.hitW : L, top + hh)) break;
     L = nl;
   }
-  for (s = my < 0 ? -1 : 1, i = Math.abs(my); i > 0; i--) {
+  // (A Lemon Jelly under lava can throw you faster each time; past the world's height the rest of a move changes nothing.)
+  for (s = my < 0 ? -1 : 1, i = Math.min(Math.abs(my), (w.H + 2) * T); i > 0; i--) {
     var nt = top + s;
     if (nt < 0 || touches(w, L, s > 0 ? top + hh : nt, L + P.hitW, s > 0 ? nt + hh : top, s > 0 ? top + hh : undefined)) break;
     if (s < 0 && w.hasFall && fallIn(w, L, nt, L + P.hitW, nt + hh)) break;   // a waterfall refuses a rise
@@ -382,7 +432,8 @@ function goalReached(p, goal, P) {
 // ups: which speed-ups the level has, { conveyor, bumper, trampoline } (or nothing). A conveyor puts you
 // at top speed at once, so there's no run-up to wait for; a bumper does that at 500 px/s, which beats top
 // speed, the jump speed and the fall cap, so the three bounds below are loosened to it. A trampoline only
-// loosens the rise, to its 800 px/s.
+// loosens the rise, to its 800 px/s, and a Lemon Jelly (ups.jelly, with ups.trampoline) to its 1200. Lava
+// (ups.lava) loosens all three.
 var SLACK_PX = 2;
 function minTimeTo(p, goal, P, ups) {
   var hw = P.hitW / 2;
@@ -393,8 +444,15 @@ function minTimeTo(p, goal, P, ups) {
   var vy = p.vy >= 0 ? p.vy : (gravityOf(P) + P.jumpCut) * DT;
   var boost = ups && ups.bumper ? PINBALL_SPEED : 0, vmax = Math.max(topSpeed(P), boost);
   var rise = Math.max(P.jumpSpeed, boost, ups && ups.trampoline ? TRAMPOLINE_SPEED : 0);   // a trampoline sets 800 straight up
-  return Math.max(0, Math.max(dx > 0 ? (ups && (ups.conveyor || ups.bumper) ? dx / vmax : minRunTime(dx, Math.max(0, goal.x0 > p.x ? p.vx : -p.vx), P)) : 0,
-    up > 0 ? up / rise : 0, down > 0 ? minFallTime(down, vy, P, Math.max(P.maxFall, boost)) : 0) - DT);
+  // A Lemon Jelly reads a fall of at most 400 px/s, so 1200 straight up, and its boost never makes gravity pull
+  // up. ponytail: a bumper or lava can feed it more, with no clear limit, so then the rise isn't bounded at all.
+  if (ups && ups.jelly) rise = ups.bumper || ups.lava ? Infinity : Math.max(rise, JELLY_SPEED);
+  // Lava throws you up at 800 and sideways at 300 or more at once, and sends a rise straight back down just as
+  // fast, so on a lava level a fall can go at the fastest rise from its first frame.
+  var fallCap = Math.max(P.maxFall, boost), fallV = vy;
+  if (ups && ups.lava) { rise = Math.max(rise, LAVA_UP); vmax = Math.max(vmax, LAVA_SIDE); fallCap = fallV = Math.max(fallCap, rise); }
+  return Math.max(0, Math.max(dx > 0 ? (ups && (ups.conveyor || ups.bumper || ups.lava) ? dx / vmax : minRunTime(dx, Math.max(0, goal.x0 > p.x ? p.vx : -p.vx), P)) : 0,
+    up > 0 ? up / rise : 0, down > 0 ? minFallTime(down, fallV, P, fallCap) : 0) - DT);
 }
 // shortest time to run D px, starting at speed u (>= 0) toward the target
 function minRunTime(D, u, P) {
@@ -574,17 +632,20 @@ function makeSearch(w, P, start, goal, opts) {
   var hw = P.hitW / 2, hh = P.hitH;
   // Which of the special tiles the level has: without them the search is exactly what it was.
   // hasFallJump: a field or water, where a press while falling jumps.
-  var hasFallJump = false, hasWater = false, ups = { conveyor: false, bumper: false, trampoline: false };
+  var hasFallJump = false, hasWater = false, ups = { conveyor: false, bumper: false, trampoline: false, jelly: false, lava: false };
   for (var wi = 0; wi < w.map.length; wi++) {
     if (w.map[wi] === FIELD || w.water[wi] === 1) hasFallJump = true;
     if (w.water[wi] === 1) hasWater = true;
     if (w.map[wi] === CONVEYOR) ups.conveyor = true;   // a conveyor can hold water too, so no else
     if (w.map[wi] === BUMPER) ups.bumper = true;
     if (w.map[wi] === MUSHROOM || w.map[wi] === BOARD) ups.trampoline = true;
+    if (w.map[wi] === JELLY) ups.trampoline = ups.jelly = true;
+    if (w.map[wi] === LAVA) ups.lava = true;
   }
-  // With wings, holding jump through a landing on a trampoline can't be had by letting go and pressing later:
-  // that press would spend the air jump the landing gave back. So holding is never skipped on such levels.
-  var holdMatters = P.parasol || (ups.trampoline && P.doubleJump);
+  // With wings, holding jump through a landing on a trampoline or lava can't be had by letting go and pressing
+  // later: that press would spend the air jump the landing gave back. And a lava cancel is a press on the frame
+  // you land, falling with the air jump spent. So holding is never skipped on such levels.
+  var holdMatters = P.parasol || ((ups.trampoline || ups.lava) && P.doubleJump);
   // For skipping a run key that does the same as another (see expand). That needs an input every frame (a
   // longer hold can run into where the keys differ) and braking as strong as speeding up. brake is one
   // frame's braking; runMax is top speed, and out of reach on a level with water, where top speed changes.
@@ -594,18 +655,18 @@ function makeSearch(w, P, start, goal, opts) {
   // The fastest-route search's frame count for the run, on a plain level (see runTable).
   // ponytail: off on a level with a field or a trampoline too, which don't touch the run; it was only
   // checked against routes on plain levels. The same check on such levels would let it be switched on there.
-  var runFrames = fastest && !hasFallJump && !ups.conveyor && !ups.bumper && !ups.trampoline ? runTable(P) : null;
+  var runFrames = fastest && !hasFallJump && !ups.conveyor && !ups.bumper && !ups.trampoline && !ups.lava ? runTable(P) : null;
   var guide = explore || fastest || opts.guide === false ? null : guideField(w, P, goal, B);
   // opts.swap: the water item can be changed on the way (see modChanged). A state then also has the item
   // worn (s.item, kept with its yes/no parts) and the frames until the next change is allowed (s.wait), and
   // is stepped with PW[s.item], which is P wearing that item. Without it, item and wait stay 0.
   var swap = !!opts.swap, WAIT = swap ? modCooldown() : 0, PW = null;
   if (swap) PW = [0, 1, 2, 3].map(function (n) { var q = {}; for (var k in P) q[k] = P[k]; q.waterItem = n; return q; });
-  // node storage in typed arrays
+  // node storage in typed arrays (NB: a Lemon Jelly's boost, a 32-bit float like everything step() works in)
   var cap = 1 << 16;
   var NX = new Float64Array(cap), NY = new Float64Array(cap), NVX = new Float64Array(cap),
-      NVY = new Float64Array(cap), NRX = new Float64Array(cap), NRY = new Float64Array(cap), NF = new Uint8Array(cap),
-      NP = new Int32Array(cap), NA = new Int8Array(cap), NG = new Float64Array(cap), NT = new Uint8Array(cap), NW = new Uint8Array(cap);
+      NVY = new Float64Array(cap), NRX = new Float64Array(cap), NRY = new Float64Array(cap), NF = new Uint16Array(cap),
+      NP = new Int32Array(cap), NA = new Int8Array(cap), NG = new Float64Array(cap), NT = new Uint8Array(cap), NW = new Uint8Array(cap), NB = new Float32Array(cap);
   var floatGear = P.waterItem === 2 || (swap && hasWater);   // whether a float is still to be had is part of the state only then
   var count = 0;
   // binary min-heap of (f, node)
@@ -613,7 +674,7 @@ function makeSearch(w, P, start, goal, opts) {
   function grow() {
     var c2 = Math.min(maxNodes, cap * 2);
     function g(a) { var b = new a.constructor(c2); b.set(a); return b; }
-    NX = g(NX); NY = g(NY); NVX = g(NVX); NVY = g(NVY); NRX = g(NRX); NRY = g(NRY); NF = g(NF); NP = g(NP); NA = g(NA); NG = g(NG); NT = g(NT); NW = g(NW);
+    NX = g(NX); NY = g(NY); NVX = g(NVX); NVY = g(NVY); NRX = g(NRX); NRY = g(NRY); NF = g(NF); NP = g(NP); NA = g(NA); NG = g(NG); NT = g(NT); NW = g(NW); NB = g(NB);
     HF = g(HF); HI = g(HI); cap = c2;
   }
   function hpush(f, i) {
@@ -677,25 +738,25 @@ function makeSearch(w, P, start, goal, opts) {
   // The state's yes/no parts as one number, with the water item worn in the top two bits: what's stored per
   // node, and part of both kinds of key.
   function flagsOf(s) {
-    return (s.onGround ? 1 : 0) | (s.prevJump ? 2 : 0) | (s.airJump ? 4 : 0) | (s.slippery ? 8 : 0) | (s.jumpLost ? 16 : 0) | (s.spawnJump ? 32 : 0) | (s.item << 6);
-  }
-  // Looks up state s: returns the node holding it (-1 if none) and leaves its slot in eSlot.
+    return (s.onGround ? 1 : 0) | (s.prevJump ? 2 : 0) | (s.airJump ? 4 : 0) | (s.slippery ? 8 : 0) | (s.jumpLost ? 16 : 0) | (s.spawnJump ? 32 : 0) |
+      (s.knockback ? 64 : 0) | (s.item << 7);
+  }  // Looks up state s: returns the node holding it (-1 if none) and leaves its slot in eSlot.
   // The wait is part of what makes a state the same here: one reached later with a shorter wait is another state.
   function eFind(s) {
     if (EN * 2 >= ECAP) eGrow();
     var fl = flagsOf(s);
-    var hs = fmix(fmix(fmix(fmix(fmix(fmix(fmix(fl + 1 + s.wait * 256, s.x), s.y), s.vx), s.vy), s.remX), s.remY), s.floatF), i = hs & (ECAP - 1);
+    var hs = fmix(fmix(fmix(fmix(fmix(fmix(fmix(fmix(fl + 1 + s.wait * 1024, s.x), s.y), s.vx), s.vy), s.remX), s.remY), s.floatF), s.boost), i = hs & (ECAP - 1);
     for (;;) {
       var e = ET[i] - 1;
       if (e < 0) { eSlot = i; EH[i] = hs; return -1; }
       if (EH[i] === hs && NF[e] === fl && NX[e] === s.x && NY[e] === s.y && NVX[e] === s.vx && NVY[e] === s.vy && NRX[e] === s.remX && NRY[e] === s.remY &&
-          NT[e] === s.floatF && NW[e] === s.wait) { eSlot = i; return e; }
+          NT[e] === s.floatF && NW[e] === s.wait && NB[e] === s.boost) { eSlot = i; return e; }
       i = (i + 1) & (ECAP - 1);
     }
   }
   var QP = opts.cellPx || 2, QV = opts.cellSpeed || 20, QYOFF = Math.ceil(4096 / QP);
-  // The state's cell, in two integers: kHi is where it is, kLo the rest (speeds, the yes/no parts and, only when
-  // the level or the gear makes it matter, whether a Jet Ski's float is still to be had).
+  // The state's cell, in two integers: kHi is where it is, kLo the rest (speeds, the yes/no parts, a Lemon Jelly's
+  // boost in 1/16ths and, only when the level or the gear makes it matter, whether a Jet Ski's float is still to be had).
   var kHi = 0, kLo = 0;
   function keyOf(s) {
     var qx = Math.round(s.x / QP) + 64, qy = Math.min(8191, Math.max(0, Math.round(s.y / QP) + QYOFF));
@@ -704,7 +765,7 @@ function makeSearch(w, P, start, goal, opts) {
     // (with water item changes the float only counts while a Jet Ski is worn)
     var fb = floatGear && (!swap || s.item === 2) && s.floatF ? 1 : 0;
     kHi = qx * 8192 + qy;
-    kLo = ((qvx * 512 + qvy) * 256 + flagsOf(s)) * 16 + fb;
+    kLo = (((qvx * 512 + qvy) * 512 + flagsOf(s)) * 16 + fb) * 32 + Math.min(31, Math.round(s.boost * 16));
   }
   function h(s) {
     if (explore) return 0;
@@ -725,13 +786,14 @@ function makeSearch(w, P, start, goal, opts) {
     if (count >= cap) grow();
     var i = count++;
     NX[i] = s.x; NY[i] = s.y; NVX[i] = s.vx; NVY[i] = s.vy; NRX[i] = s.remX; NRY[i] = s.remY;
-    NF[i] = flagsOf(s); NT[i] = s.floatF; NW[i] = s.wait;
+    NF[i] = flagsOf(s); NT[i] = s.floatF; NW[i] = s.wait; NB[i] = s.boost;
     NP[i] = parent; NA[i] = a; NG[i] = g;
     return i;
   }
   function load(i, s) {
-    s.x = NX[i]; s.y = NY[i]; s.vx = NVX[i]; s.vy = NVY[i]; s.remX = NRX[i]; s.remY = NRY[i]; s.floatF = NT[i]; s.wait = NW[i];
-    var f = NF[i]; s.onGround = !!(f & 1); s.prevJump = !!(f & 2); s.airJump = !!(f & 4); s.slippery = !!(f & 8); s.jumpLost = !!(f & 16); s.spawnJump = !!(f & 32); s.item = f >> 6; s.holding = false;
+    s.x = NX[i]; s.y = NY[i]; s.vx = NVX[i]; s.vy = NVY[i]; s.remX = NRX[i]; s.remY = NRY[i]; s.floatF = NT[i]; s.wait = NW[i]; s.boost = NB[i];
+    var f = NF[i]; s.onGround = !!(f & 1); s.prevJump = !!(f & 2); s.airJump = !!(f & 4); s.slippery = !!(f & 8); s.jumpLost = !!(f & 16); s.spawnJump = !!(f & 32);
+    s.knockback = !!(f & 64); s.item = f >> 7; s.holding = false;
   }
   function path(i, lastA) {
     var acts = []; if (lastA != null) acts.push(lastA);
@@ -794,8 +856,8 @@ function makeSearch(w, P, start, goal, opts) {
       : s.prevJump || !(s.airJump || s.spawnJump || (hasFallJump && jumpsFalling(w, s.x, s.y - hh / 2))));
     // Two run keys that leave the same speed make the very same frame, so the later one is skipped. Running
     // faster than one frame's braking, the key against the run brakes just as no key does; at top speed the
-    // key along it can't add any, so it brakes too. Not when slippery: no key doesn't brake there.
-    var same = sameKeys && !s.slippery, noKeySame = same && (s.vx < -brake || s.vx >= runMax), leftSame = same && (s.vx > brake || s.vx <= -runMax);
+    // key along it can't add any, so it brakes too. Not when slippery or in knockback: no key doesn't brake there.
+    var same = sameKeys && !s.slippery && !s.knockback, noKeySame = same && (s.vx < -brake || s.vx >= runMax), leftSame = same && (s.vx > brake || s.vx <= -runMax);
     // A water item change, once the wait is over: the same state at the same time, wearing another item, with
     // the air jump gone and the wait started again (action 6 + item). On a level with no water every change
     // does the same, and nothing at all without an air jump to lose, so there it is one action (10), tried
@@ -804,7 +866,8 @@ function makeSearch(w, P, start, goal, opts) {
       var hs = h(s);
       if (!fastest || NG[idx] + hs <= bestT - HALF) for (var it = hasWater ? 0 : 4; it <= (hasWater ? 3 : 4) && count < maxNodes; it++) {
         if (it === s.item || it === 1) continue;   // (there is no water item 1)
-        n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.onGround = s.onGround;
+        n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.boost = s.boost; n.onGround = s.onGround;
+        n.knockback = s.knockback;
         n.prevJump = s.prevJump; n.airJump = s.airJump; n.slippery = s.slippery; n.jumpLost = s.jumpLost; n.spawnJump = s.spawnJump;
         n.item = it < 4 ? it : s.item; n.wait = WAIT;
         modChanged(n);
@@ -822,7 +885,8 @@ function makeSearch(w, P, start, goal, opts) {
       var dir = ACT_DIR[a], jump = ACT_JUMP[a];
       if (jump && holdUseless) continue;
       if (dir === 0 ? noKeySame : dir < 0 && leftSame) continue;
-      n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.dead = false; n.onGround = s.onGround;
+      n.x = s.x; n.y = s.y; n.vx = s.vx; n.vy = s.vy; n.remX = s.remX; n.remY = s.remY; n.floatF = s.floatF; n.boost = s.boost; n.dead = false; n.onGround = s.onGround;
+      n.knockback = s.knockback;
       n.prevJump = s.prevJump; n.holding = s.holding; n.airJump = s.airJump; n.slippery = s.slippery; n.jumpLost = s.jumpLost; n.spawnJump = s.spawnJump;
       n.item = s.item; n.wait = s.wait > K ? s.wait - K : 0;
       var dead = false, reached = false;

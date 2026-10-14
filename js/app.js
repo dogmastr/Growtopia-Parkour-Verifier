@@ -165,6 +165,23 @@ function mushroomTex() {
     for (const [x, y, w, h] of [[11, 11, 4, 3], [19, 8, 5, 4], [23, 14, 3, 3], [15, 15, 3, 2]]) px(g, x, y, w, h, "#fff7f0");
   });
 }
+// A yellow jelly cube with a shine. Solid: you stand on it, and landing on top of it bounces you by how fast you fell.
+function jellyTex() {
+  return tex(g => {
+    px(g, 0, 0, T, T, "#f2c12e"); px(g, 0, 0, T, 2, "#ffe27a"); px(g, 0, 0, 2, T, "#f7d24f");
+    px(g, T - 2, 0, 2, T, "#cf9a1a"); px(g, 0, T - 2, T, 2, "#b8860f");
+    px(g, 5, 5, 10, 3, "#fff6c2"); px(g, 5, 8, 3, 6, "#fff6c2");
+    for (const [x, y, s] of [[21, 9, 3], [13, 19, 2], [23, 22, 2], [8, 24, 3]]) px(g, x, y, s, s, "#ffe27a");
+  });
+}
+// Glowing lava with brighter blobs. Solid, and touching it from any side throws you.
+function lavaTex() {
+  return tex(g => {
+    px(g, 0, 0, T, T, "#e4571b"); px(g, 0, 0, T, 2, "#ffb03a"); px(g, 0, T - 2, T, 2, "#a8300f");
+    for (const [x, y, w, h] of [[4, 6, 8, 4], [18, 4, 9, 3], [10, 15, 10, 4], [22, 17, 6, 4], [3, 24, 9, 3], [17, 26, 10, 3]]) px(g, x, y, w, h, "#ff9a2e");
+    for (const [x, y] of [[6, 7], [20, 5], [13, 16], [24, 18], [5, 25], [20, 27]]) px(g, x, y, 3, 1, "#ffe08a");
+  });
+}
 // A blue diving board along the top of the tile, which is where you stand; the rest of the tile is open.
 function boardTex() {
   return tex(g => {
@@ -179,7 +196,7 @@ function platformTex() {
 }
 function makeTextures() {
   TEX.platform = platformTex();
-  TEX.mushroom = mushroomTex(); TEX.board = boardTex();
+  TEX.mushroom = mushroomTex(); TEX.board = boardTex(); TEX.jelly = jellyTex(); TEX.lava = lavaTex();
   TEX.bumper = bumperTex(); TEX.fall = waterfallTex();
   TEX.water = [waterTex(false), waterTex(true)];
   TEX.soil = [soilTex(11), soilTex(23), soilTex(37)];
@@ -216,6 +233,8 @@ function renderTiles(x0, y0, x1, y1) {
     else if (v === MUSHROOM) img = TEX.mushroom;
     else if (v === BOARD) img = TEX.board;
     else if (v === PLATFORM) img = TEX.platform;
+    else if (v === JELLY) img = TEX.jelly;
+    else if (v === LAVA) img = TEX.lava;
     wctx.drawImage(img, x * T, y * T);
   }
 }
@@ -530,7 +549,7 @@ mBuild.addEventListener("click", () => setMode("build"));
 /* ---------- editor ---------- */
 const TOOLS = [
   { id: "soil", label: "Dirt", code: SOIL, key: "1" },
-  { id: "spike", label: "Spike", code: SPIKE, key: "2", title: "Spike: a full deadly block. Moving into any side of it kills, like in Growtopia, unless a trampoline or a bumper to its left acts first." },
+  { id: "spike", label: "Spike", code: SPIKE, key: "2", title: "Spike: a full deadly block. Moving into any side of it kills, like in Growtopia, unless a trampoline, a bumper or lava to its left acts first." },
   { id: "start", label: "Start", key: "3" },
   { id: "finish", label: "Finish", key: "4" },
   { id: "field", label: "Antigravity", code: FIELD, key: "5", title: "Antigravity field: not solid. While the middle of your body is inside it, gravity is 0.375 times as strong, you can jump again while falling, and a jump started in it saves one more jump for the air." },
@@ -540,6 +559,8 @@ const TOOLS = [
   { id: "fall", label: "Waterfall", code: WATERFALL, key: "9", title: "Waterfall (and the juice waterfall): not solid, and not water. You walk and fall through it and it never changes your gravity or speed. It only refuses any move up that would leave your body in it: from below it's a ceiling, and inside it you can't rise, so a jump there goes nowhere." },
   { id: "mushroom", label: "Mushroom", code: MUSHROOM, key: "M", title: "Mushroom (a trampoline): a solid block. Landing on top of it sets your upward speed to 800 px/s, whatever your fall speed was, and your run and your held jump are left alone: hold jump and you rise about 320 px, let go and about 53. From the side it's a plain wall." },
   { id: "board", label: "Diving board", code: BOARD, key: "B", title: "Diving board (a trampoline platform): solid only from above, so you pass through it from below and from the sides. Landing on top of it bounces you to 800 px/s upward, like the Mushroom." },
+  { id: "jelly", label: "Lemon Jelly", code: JELLY, key: "J", title: "Lemon Jelly Block (a trampoline): a solid block. Landing on top of it bounces you by how fast you fell: 1200 px/s up after a full-speed fall, never less than 531. Gravity is weaker for the first few frames of the rise, so after a full-speed fall with jump held you rise about 772 px (24 tiles). From the side it's a plain wall." },
+  { id: "lava", label: "Lava", code: LAVA, key: "L", title: "Lava: a solid block that throws you. Landing on it or standing on it throws you up at 800 px/s; jumping up into it sends you back down. Either way you go sideways at 300 px/s or more and are in knockback until you land: much stronger gravity, weak steering, no slowing down. Touching its side flips your sideways speed. In the game 5 hits in a row kill you; here lava never kills." },
   { id: "platform", label: "Platform", code: PLATFORM, key: "P", title: "Platform: solid only from above. You pass through it from below and from the sides, and stand on top of it." },
   { id: "erase", label: "Erase", code: EMPTY, key: "E" }
 ];
@@ -547,7 +568,7 @@ function toolIcon(t) {
   const c = document.createElement("canvas"); c.width = c.height = T; const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
   if (t.id === "soil") g.drawImage(TEX.turf[0], 0, 0);
   else if (t.id === "spike") { g.fillStyle = "#9fd8e6"; g.fillRect(0, 0, T, T); g.drawImage(TEX.spike[0], 0, 0); }
-  else if (t.id === "field" || t.id === "conveyor" || t.id === "bumper" || t.id === "fall" || t.id === "mushroom" || t.id === "board" || t.id === "platform") { g.fillStyle = "#9fd8e6"; g.fillRect(0, 0, T, T); g.drawImage(TEX[t.id], 0, 0); }
+  else if (t.id === "field" || t.id === "conveyor" || t.id === "bumper" || t.id === "fall" || t.id === "mushroom" || t.id === "board" || t.id === "jelly" || t.id === "lava" || t.id === "platform") { g.fillStyle = "#9fd8e6"; g.fillRect(0, 0, T, T); g.drawImage(TEX[t.id], 0, 0); }
   else if (t.id === "water") { g.fillStyle = "#9fd8e6"; g.fillRect(0, 0, T, T); g.drawImage(TEX.water[1], 0, 0); }
   else if (t.id === "start" || t.id === "finish") {
     g.fillStyle = "#9fd8e6"; g.fillRect(0, 0, T, T); g.fillStyle = "#3a3f45"; g.fillRect(9, 4, 3, 26);
@@ -923,9 +944,9 @@ function resolveSpot(t, allowTouch) {
   const { tx, ty } = t;
   if (tx < 0 || tx >= LEVEL.W || ty < 0 || ty >= LEVEL.H) return null;
   const v = LEVEL.map[ty * LEVEL.W + tx];
-  // The top of the block in row y. A diving board is stood on from above like a block. A trampoline
+  // The top of the block in row y. A diving board is stood on from above like a block. A trampoline or lava
   // throws you off at once, so as the landing spot (B) it's the tile just above it that has to be touched.
-  const top = (y, u) => ({ stand: !(allowTouch && (u === MUSHROOM || u === BOARD)), tx, ty: y - 1, x: tx * T + T / 2, y: y * T });
+  const top = (y, u) => ({ stand: !(allowTouch && (u === MUSHROOM || u === BOARD || u === JELLY || u === LAVA)), tx, ty: y - 1, x: tx * T + T / 2, y: y * T });
   if (isSolidCode(v) || v === BOARD || v === PLATFORM) {
     if (ty > 0 && isPassableCode(LEVEL.map[(ty - 1) * LEVEL.W + tx])) return top(ty, v);
     return null;
@@ -956,7 +977,7 @@ function pickSpot(t) {
   overlay.B = { x: sp.x, y: sp.y };
   const A = overlay.A;
   const goal = sp.stand ? { kind: "stand", x0: sp.tx * T, x1: (sp.tx + 1) * T, y: sp.y } : { kind: "touch", x0: sp.tx * T, y0: sp.ty * T, x1: (sp.tx + 1) * T, y1: (sp.ty + 1) * T };
-  const bounds = [Math.min(A.x, sp.x) - 6 * T, Math.min(A.y, sp.y) - headroomTiles(P, LEVEL.map.some(v => v === MUSHROOM || v === BOARD)) * T, Math.max(A.x, sp.x) + 6 * T, Math.max(A.y, sp.y) + 3 * T];
+  const bounds = [Math.min(A.x, sp.x) - 6 * T, Math.min(A.y, sp.y) - headroomTiles(P, LEVEL.map.some(v => v === MUSHROOM || v === BOARD), LEVEL.map.includes(JELLY)) * T, Math.max(A.x, sp.x) + 6 * T, Math.max(A.y, sp.y) + 3 * T];
   picking = null; ckJump.setAttribute("aria-pressed", "false"); hover = null; updateHint();
   startJob("jump", { x: A.x, y: A.y }, goal, bounds, PASSES);
 }

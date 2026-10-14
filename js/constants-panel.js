@@ -24,6 +24,9 @@ const BUILTIN = [
   ["Bumper launch", () => `${PINBALL_SPEED} px/s`, "Straight away from the bumper's centre; your old speed is dropped."],
   ["Slippery steering · wall bounce", () => `${Math.round(SLIPPERY_STEER * 100)}% · ${Math.round(SLIPPERY_BOUNCE * 100)}%`, "After a bumper, until you land: steering while rising, and the share of your speed a wall throws back."],
   ["Trampoline bounce", () => `${TRAMPOLINE_SPEED} px/s`, "Mushroom and Diving Board: your upward speed is set to this on landing."],
+  ["Lava throw: up · sideways", () => `${LAVA_UP} · ${LAVA_SIDE}+ px/s`, "Landing or standing on lava throws you up at this; jumping into it from below sends you back down. It never kills here (in the game, 5 hits in a row do)."],
+  ["Knockback gravity", () => `+${Math.round(KNOCKBACK_CUT * P.jumpCut)} px/s²`, "Extra, after a lava hit until you land (rising with jump let go gets the full 5000 instead). Steering is 15% and nothing slows you down."],
+  ["Lemon Jelly bounce", () => `${Math.round(JELLY_MIN)} to ${JELLY_SPEED} px/s`, "By how fast you fell: 1200 after a full-speed fall. Gravity on the way up is cut by a boost that shrinks to 0.5625 of itself every frame."],
   ["Floaties: sink cut · push", () => `${FLOATIE_SINK} px/s · ${FLOATIE_SINK_PUSH} px/s²`, "Sinking is cut to this speed and pushed back up, so you sink only 2 to 3 px."],
   ["Floaties: rise push · cap", () => `${FLOATIE_RISE_PUSH} px/s² · ${FLOATIE_RISE_CAP} px/s`, "Rising gets a gentle push, and upward speed (jumps too) is capped."]
 ];

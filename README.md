@@ -39,7 +39,7 @@ The movement follows the reverse-engineered Android 5.59 client: one step per fr
 
 **Spawn:** at the checkpoint your head is at the top of its tile, 2 px above whatever is under it. You can jump at once even in the air, and with wings the second jump is ready too, unless a spike is right under the checkpoint (then you get only the one jump); a jump or a landing uses the spawn jump up.
 
-**Tiles:** dirt, spike (deadly, full block), antigravity field, conveyor block, pinball bumper, waterfall, Mushroom and Diving Board (trampolines), and water (a flag that can share a tile with a block).
+**Tiles:** dirt, spike (deadly, full block), antigravity field, conveyor block, pinball bumper, waterfall, Mushroom and Diving Board (trampolines), Lemon Jelly Block, lava, and water (a flag that can share a tile with a block).
 **Gear:** double jump (wings), parasol, 3 speed items, high jump item, and one water item: a Jet Ski or floaties.
 
 - **Antigravity field, conveyor, water:** act on the centre point of your box, not its edges. Field: gravity ×0.375, you can jump while falling. Conveyor: run set to top speed, rightwards. Water: gravity and fall cap ×0.3 (300 px/s², 120 px/s), run 125 px/s, jump ×0.6 (270 px/s).
@@ -48,6 +48,8 @@ The movement follows the reverse-engineered Android 5.59 client: one step per fr
 - **Waterfall:** not solid and not water. It only refuses upward steps that would leave your box in it, so it's a ceiling from below and you can't rise inside it.
 - **Pinball bumper:** solid; a touch sets your speed to 500 px/s straight away from its centre, takes you off the ground, makes you slippery until you land, and clears the held-jump state until the next press. (The bouncy turret, a platform, and the fire-flag bumper aren't modelled.)
 - **Trampolines:** landing on top of the Mushroom (solid) or the Diving Board (a platform, solid only from above) sets your upward speed to 800 px/s, whatever your fall speed was, and nothing else; jump held or let go then rises about 320 or 53 px.
+- **Lemon Jelly Block:** solid; lands like a trampoline, but the bounce goes by the speed you fell with (read from the end of the frame before): 1200 × (fall ÷ 400)² px/s, at least 531. While you rise, gravity is cut by a boost that starts at (fall ÷ 400)² and shrinks to 0.5625 of itself every frame. After a full-speed fall with jump held you rise 772 px.
+- **Lava:** solid, and it throws you instead of killing at once. Landing or standing on it sets your upward speed to 800 px/s (jumping up into it reverses your speed instead), makes your sideways speed at least 300 px/s, and puts you in knockback until you land: 4250 px/s² extra gravity (5000 rising with jump let go, as usual), 15% steering, no friction, and walls throw you back at 1% of your speed. A side hit flips your sideways speed (at least 300 out of knockback). In the game the server kills you after 5 hits in a row within 5 s; the verifier leaves that out, so lava never kills.
 - **Blocks side by side:** the contact test goes through the blocks under your box column by column from the left, and the first that acts ends it (a spike kills, a trampoline bounces, a bumper throws). A trampoline or bumper on the left of a spike saves you while 1 px of your box is over it; a spike on the left kills you.
 
 The sliders in the Constants panel change the numbers (the ones built into the game are listed, not editable); the notes under the game explain each rule.
@@ -64,4 +66,4 @@ With "Water items can be changed on the way" ticked, the checker may also put a 
 THL1|W|H|startX,startY|finishX,finishY|runs[|waterRuns]
 ```
 
-`runs` is the map row by row from the top, as `<tile code><count in base 36>` joined with `.`; `waterRuns` is the water layer the same way and is left off when there's no water. The tile code is one base-36 character: `0` empty, `1` dirt, `2` stone, `3` wood, `4` bedrock, `5` spike, `6` antigravity field, `7` conveyor, `8` pinball bumper, `9` waterfall, `a` Mushroom, `b` Diving Board, `c` Platform. Build > Copy level code / Load a code.
+`runs` is the map row by row from the top, as `<tile code><count in base 36>` joined with `.`; `waterRuns` is the water layer the same way and is left off when there's no water. The tile code is one base-36 character: `0` empty, `1` dirt, `2` stone, `3` wood, `4` bedrock, `5` spike, `6` antigravity field, `7` conveyor, `8` pinball bumper, `9` waterfall, `a` Mushroom, `b` Diving Board, `c` Platform, `d` Lemon Jelly, `e` Lava. Build > Copy level code / Load a code.

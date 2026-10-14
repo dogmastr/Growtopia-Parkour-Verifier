@@ -51,7 +51,7 @@ const PRESETS = [
 /* ---------- level codes ----------
    "THL1|W|H|sx,sy|fx,fy|runs[|waterRuns]": runs are "<tile code><count in base 36>" joined by ".", row by row
    from the top. The tile code is one character, in base 36 (0-9 as always, then a = Mushroom, b = Diving
-   Board, c = Platform). The finish part is empty when there is no finish flag. waterRuns is the same for the water
+   Board, c = Platform, d = Lemon Jelly, e = Lava). The finish part is empty when there is no finish flag. waterRuns is the same for the water
    layer (0 dry, 1 water) and is left off when the level has no water, so such codes are what they always were. */
 function rleRuns(a) {
   const runs = []; let cur = a[0], n = 0;
@@ -79,7 +79,7 @@ function decodeLevel(str) {
   if (parts[0] !== "THL1" || (parts.length !== 6 && parts.length !== 7)) throw new Error("That doesn't look like a level code from this page. Codes start with THL1|.");
   const W = +parts[1], H = +parts[2];
   if (!(W >= 16 && W <= 200 && H >= 8 && H <= 60)) throw new Error("The level size in that code is outside 16–200 by 8–60 tiles.");
-  const map = unRleRuns(parts[5], W * H, PLATFORM, "tile");
+  const map = unRleRuns(parts[5], W * H, LAVA, "tile");
   const water = parts.length === 7 ? unRleRuns(parts[6], W * H, 1, "water") : new Uint8Array(W * H);
   const [sx, sy] = parts[3].split(",").map(Number);
   if (!(sx >= 0 && sx < W && sy >= 0 && sy < H)) throw new Error("The start position in that code is outside the level.");

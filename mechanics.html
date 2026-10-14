@@ -211,6 +211,7 @@
           <li>A trampoline bounce reaches 11 tiles from 12 fps (81 ms).</li>
           <li>A lava bounce reaches 3 tiles from 12 fps (83 ms).</li>
           <li>A plain held jump never reaches 4 tiles. It tops out at 124 px, 4 px short.</li>
+          <li>A <a href="#lemon-jelly">Lemon Jelly</a> bounce gains the most: 772 px at 62.5 fps, 1040 px at 10 fps and below, 8 tiles more.</li>
         </ul>
         <p>How it is worked out:</p>
         <ul>
@@ -318,8 +319,8 @@
       <article class="topic" id="lemon-jelly" data-title="Lemon Jelly Block">
         <p class="crumb">Blocks</p>
         <h2>Lemon Jelly Block</h2>
-        <p class="lead">The Lemon Jelly Block (5392) bounces you by how fast you fall onto it: the faster the fall, the stronger the bounce, from 531 to 1200 px/s.</p>
-        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+        <p class="lead">The Lemon Jelly Block (5392) bounces you by how fast you fall onto it: the faster the fall, the stronger the bounce, from 531 to 1200 px/s after a normal fall.</p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes. It is in the editor (key <kbd>J</kbd>), and the game there and the route checker use the bounce, the boost and the fall speed below. The runaway launch at the end can be built there too, but it has no 10,000 px/s cap.</span></p>
 
         <h3>When it bounces</h3>
         <p>The same landing condition as a <a href="#trampolines">trampoline</a>: gravity on, not rising, feet at or above its top.</p>
@@ -327,8 +328,15 @@
         <h3>How strong</h3>
         <ul>
           <li><code>r = (fall speed ÷ 400)²</code></li>
-          <li>Your upward speed becomes <b>1200 × r</b>, but never less than <b>531.25</b>. So 531 to 1200 px/s.</li>
+          <li>Your upward speed becomes <b>1200 × r</b>, but never less than <b>531.25</b>. After a normal fall that is 531 to 1200 px/s.</li>
           <li>The floor of 531.25 applies for fall speeds up to about 266 px/s (about 35 px of fall).</li>
+        </ul>
+
+        <h3>Which fall speed it reads</h3>
+        <ul>
+          <li>Your up-and-down speed from the end of the previous frame. The game copies that speed every frame, right after you move, to draw your avatar, and the jelly reads the copy.</li>
+          <li>In a normal landing that is the speed you land with.</li>
+          <li>The copy is not held to the 400 px/s fall limit, and it is squared in the formula. So anything that pushes your speed past 400 just before the jelly fires gives a bigger bounce.</li>
         </ul>
 
         <h3>The rise afterwards</h3>
@@ -338,8 +346,40 @@
           <li>It ends on the first frame you are no longer rising.</li>
         </ul>
 
-        <h3>Not known</h3>
-        <p>Which stored fall speed the block reads. It is assumed to be your speed just before landing.</p>
+        <h3>Lower frame rates bounce much higher</h3>
+        <p>The boost is cut every frame, not every second. So the longer each frame, the longer the boost lasts: about 0.1 s with <a href="#frame-time">16 ms frames</a>, about 0.6 s with 100 ms frames.</p>
+        <p>Height after a full-speed fall (400 px/s), jump held:</p>
+        <div class="tablewrap">
+          <table class="kv">
+            <thead><tr><th>Frame rate</th><th class="num">Rise</th></tr></thead>
+            <tbody>
+              <tr><td>62.5 fps (16 ms)</td><td class="num">772 px (24.1 tiles)</td></tr>
+              <tr><td>30 fps (33 ms)</td><td class="num">828 px</td></tr>
+              <tr><td>20 fps (50 ms)</td><td class="num">883 px</td></tr>
+              <tr><td>15 fps (67 ms)</td><td class="num">937 px</td></tr>
+              <tr><td>12 fps (83 ms)</td><td class="num">987 px</td></tr>
+              <tr><td>10 fps and below</td><td class="num">1040 px (32.5 tiles)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>That is 268 px more. Over the same range a trampoline gains only 34 px, so the frame rate matters about eight times more on a jelly.</li>
+          <li>A short lag counts too. One hitch of 100 ms or more on the bounce frame adds about 38 px. Two in a row add about 66 px.</li>
+          <li>With High Jump it goes 1062 px at 16 ms. In an Antigravity Generator world it goes 1972 px, past the top of a 60-tile world.</li>
+        </ul>
+
+        <h3>Lava above a Lemon Jelly: a runaway launch</h3>
+        <p>A Lemon Jelly floor, one empty tile, then a <a href="#lava">Lava</a> block above it:</p>
+        <ol>
+          <li>The jelly throws you up at 531 px/s.</li>
+          <li>The lava hits you from below. That reverses your speed, so you land on the jelly moving down at about 531.</li>
+          <li>The jelly bounces you at 1991 px/s.</li>
+          <li>The lava reverses that, and the next jelly bounce is 10,000 px/s. That is its cap with jump held. If you let go of jump there is no cap.</li>
+        </ol>
+        <ul>
+          <li>Each lava hit also pushes you sideways at 300 px/s. After the 3rd hit that carries you out from under a single lava block, and the next bounce launches you.</li>
+          <li>You hit the top of the world. Nothing stops your upward speed at a <a href="#ceilings">ceiling</a>, so you stay pinned there for about 24 s while holding jump, and you can run along the top of the world the whole time.</li>
+        </ul>
       </article>
 
       <article class="topic" id="bumper" data-title="Pinball bumper">
@@ -441,7 +481,7 @@
         <p class="crumb">Blocks</p>
         <h2>Lava and other pain blocks</h2>
         <p class="lead">Lava doesn't simply kill you the way spikes do. It throws you away from it and puts you in knockback, and enough hits in a row kill you.</p>
-        <p class="status" data-in="no"><span><b>In the verifier:</b> not yet.</span></p>
+        <p class="status" data-in="part"><span><b>In the verifier:</b> lava, yes. It is in the editor (key <kbd>L</kbd>), and the game there and the route checker throw you and put you in knockback as below. Lava never kills you there: dying after 5 hits is left out on purpose. Cactus, acid, fire and the blocks you can overlap: not yet.</span></p>
 
         <h3>From above or below</h3>
         <ul>
@@ -463,6 +503,12 @@
           <li><b>Gravity is much stronger.</b> Rising with jump held: 4250 extra. Rising with jump let go: 5000 extra. Falling: 4250 extra. The fall cap stays 400.</li>
           <li>Steering is only 15% as strong, and nothing slows you down (no friction).</li>
           <li>A normal wall barely bounces you: your speed × −0.01.</li>
+        </ul>
+        <p>The 4250 is (1 − 0.15) × 5000: the extra gravity for letting go of jump, scaled down by the same 0.15 that weakens steering in knockback. It doesn't change with gravity.</p>
+        <p>So keys barely change a hop's length:</p>
+        <ul>
+          <li><b>Holding forward</b> does nothing. Steering only adds speed below your top speed (250 px/s), and a hit leaves you at 300 or more.</li>
+          <li><b>Holding back</b> slows you a little, at 180 px/s² (15% of 1200). That takes at most about 12 px off a 23-frame hop.</li>
         </ul>
 
         <h3>Dying</h3>
@@ -524,8 +570,31 @@
           <li>A press 8 to 12 frames after the hit gives the longest hop, about 144 to 153 px per hit.</li>
         </ul>
 
+        <h3>Glide items make lava hops longer</h3>
+        <p>While you're in knockback and falling, the game adds the 4250 first and then applies the glide item's × 0.3 to the total. So with a parasol or another glide item and jump held, you fall at (1000 + 4250) × 0.3 = 1575 px/s² instead of 5250. The rise doesn't change, because gliding only works while you fall.</p>
+        <p>On a long lava floor (default gravity, no key held):</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>How you press</th><th class="num">No glide item</th><th class="num">Glide item worn</th></tr></thead>
+            <tbody>
+              <tr><td>Jump held from before, no press</td><td class="num">110 px, 23 frames</td><td class="num">134 px, 28 frames</td></tr>
+              <tr><td>Air jump pressed 13 to 20 frames after the hit (12 to 19 with a glide item)</td><td class="num">158 px, 33 frames</td><td class="num">178 px, 37 frames</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li><b>Jump held:</b> holding jump from before the hit glides without spending the air jump.</li>
+          <li><b>The air jump:</b> the second row is the same fresh press as in the Lava cancel table: jump is up until you press. The air jump comes back on every landing, so you can use it on every hop.</li>
+          <li><b>Later presses:</b> pressing later than the Lava cancel table's 12 frames goes farther, 158 px instead of 153. The top stays at 59 px, because the press comes after the top.</li>
+          <li><b>Before the 5th hit</b> you get four hops. With the four numbers in the table that's 440, 536, 632 and 712 px, or 13.75, 16.75, 19.75 and 22.25 tiles. With Fireproof you get nine hops: 990 to 1602 px.</li>
+          <li><b>Other gravity:</b> with High Jump, Mars or the Antigravity Generator, hops are only 5 to 20 px longer. The 4250 doesn't change with gravity.</li>
+        </ul>
+
         <h3>A wall above lava</h3>
         <p>With a plain wall above lava in the same column, the sideways check takes the upper block first. The wall sets your sideways speed to 0. Then the lava sees a speed of 0 and sets it to 300 px/s to the right. So the push is to the right, whichever side you came from.</p>
+
+        <h3>Side hits on slippery floors</h3>
+        <p>A side hit sets your sideways speed to at least 300 px/s, but it doesn't start knockback. On normal ground friction stops you in 37.5 px. On ice, or with slippery gear, there is no friction, so the 300 px/s lasts until a wall.</p>
 
         <h3>Blocks you can overlap</h3>
         <p>Fire on a non-solid tile, the Atomic Fireball (3764), the Saguaro Cactus (8326), the Barbed Wire Barrier (8980) and the Steam Vent (3284) can be overlapped. While your box is inside one, both checks fire every frame, sideways first and then up and down. With no sideways speed, the sideways one gives you +300 px/s.</p>
@@ -574,7 +643,7 @@
         <p class="crumb">Start here</p>
         <h2>When blocks sit side by side</h2>
         <p class="lead">When your box is over two different blocks at once, the game doesn't weigh them. It looks at them one at a time, from the left, and the first one that does something ends the check.</p>
-        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, for spikes, bumpers and trampolines. Lava: not yet.</span></p>
+        <p class="status" data-in="yes"><span><b>In the verifier:</b> yes, for spikes, bumpers, trampolines and lava.</span></p>
 
         <h3>A trampoline next to a spike</h3>
         <p>Say the trampoline sits at 0 to 32 px and the spike right beside it at 32 to 64 px, and your box is 20 px wide:</p>
@@ -633,7 +702,7 @@
           <li>Drop onto them so that most of your box is over the Mushroom and a few pixels are over the spike. The code says you bounce.</li>
           <li>Swap them, and drop on the same way. The code says you die.</li>
         </ol>
-        <p>The verifier's Mushroom, spike and pinball tiles follow this rule, so you can set the same thing up in Build.</p>
+        <p>The verifier's Mushroom, spike, pinball and lava tiles follow this rule, so you can set the same thing up in Build.</p>
 
         <p class="note">Left to right, and top to bottom inside a column, is read from the code.</p>
       </article>
@@ -1577,7 +1646,6 @@
           <li>The exact numbers the game uses for speed items and High Jump. The server sends them. The values on this page are measured.</li>
           <li>Hits to death and how fast health comes back. The server decides both, so they can't be read from the code. The 5 hits in 5 seconds under <a href="#lava">Lava</a> is not from the code.</li>
           <li>The Steam Stomper's cooldown.</li>
-          <li>Which fall speed the Lemon Jelly Block uses.</li>
           <li>Which way the arrow of an unflipped One-Way Block points on screen.</li>
           <li>What, besides a mod change, makes the server send a state update. Each one clears the stored air jump. See <a href="#mods">Changing mods</a>.</li>
           <li>What else passes the game's float test on a clothing update. Besides the 12 listed items, the item in your hand has a check of its own that hasn't been read. See <a href="#water">Water</a>.</li>
