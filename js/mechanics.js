@@ -13,7 +13,7 @@
     links.forEach(function (a) {
       if (a.getAttribute("href") === "#" + cur.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
-    document.title = cur.dataset.title + " · Growtopia Mechanics";
+    document.title = cur.dataset.title + " · Growtopia Physics";
     if (toTop) window.scrollTo(0, 0);
   }
   window.addEventListener("hashchange", function () { show(location.hash.slice(1), true); });

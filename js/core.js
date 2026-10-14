@@ -253,7 +253,8 @@ function step(p, input, P, w) {
   // A fresh spawn has the wings' second jump ready, unless a spike is right under the checkpoint: then
   // the spawn jump is the only one. (A spike under the feet at spawn is 2 px away; 3 px reaches into it.)
   if (p.spawnJump && P.doubleJump && touches(w, p.x - hw, p.y, p.x + hw, p.y + 3) !== 2) p.airJump = true;
-  var vyDrawn = p.vy;   // the speed the frame before ended with: what a Lemon Jelly reads  if (input.jumpPressed) p.jumpLost = false;   // a new press brings back the held state a bumper cleared
+  var vyDrawn = p.vy;   // the speed the frame before ended with: what a Lemon Jelly reads
+  if (input.jumpPressed) p.jumpLost = false;   // a new press brings back the held state a bumper cleared
   var held = !!input.jump && !p.jumpLost;
   var dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   if (dir !== 0) p.facing = dir;
