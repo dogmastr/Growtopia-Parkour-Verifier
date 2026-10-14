@@ -1,4 +1,4 @@
-/* ===== mechanics.js: the Mechanics page's tab bar, the Bounce cancel numbers, and the jump-height-by-frame-rate figure =====
+/* ===== mechanics.js: the Physics page's tab bar, the Bounce cancel numbers, and the jump-height-by-frame-rate figure =====
    The numbers and the chart are worked out by core.js, the same physics the verifier and its route checker run,
    so what this page says about a bounce is what the checker assumes. */
 (function () {

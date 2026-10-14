@@ -1,4 +1,4 @@
-/* The Mechanics page: a tab bar down the left, one topic at a time on the right.
+/* The Physics page: a tab bar down the left, one topic at a time on the right.
    Tokens, cards and the header come from base.css. Without script every topic shows and the bar is a list of jump links. */
 
 .mech { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: var(--gap); align-items: start; }

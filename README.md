@@ -10,15 +10,15 @@ Fan-made and not affiliated with Growtopia or Ubisoft. All art is original.
 
 ```
 index.html             the page
-mechanics.html         the Mechanics page: how bounces, blocks and the player work, one topic per tab
+mechanics.html         the Physics page: how bounces, blocks and the player work, one topic per tab
 css/base.css           layout, controls, theme
 css/editor.css         build tools, route checker, touch pads
-css/mechanics.css      the Mechanics page's tab bar and text
+css/mechanics.css      the Physics page's tab bar and text
 js/core.js             physics, collision, route checker (runs in the page and the worker)
 js/levels.js           built-in levels and level codes
 js/app.js              level state, drawing, editor, game loop, checker UI
 js/constants-panel.js  the Constants sliders
-js/mechanics.js        the Mechanics page's tabs, and its numbers and chart (worked out by core.js)
+js/mechanics.js        the Physics page's tabs, and its numbers and chart (worked out by core.js)
 js/boot.js             startup
 js/worker.js           the route checker's Web Worker
 ```
@@ -27,7 +27,7 @@ Opened straight from disk, Chrome refuses workers, so the checker then runs on t
 
 ## Physics
 
-The movement follows the reverse-engineered Android 5.59 client: one step per frame, whole pixels, 32-bit floats. A frame is 16 ms, or 17 ms with the Frame length buttons (the game runs both; see the Mechanics page). Units are px and seconds; a tile is 32 px.
+The movement follows the reverse-engineered Android 5.59 client: one step per frame, whole pixels, 32-bit floats. A frame is 16 ms, or 17 ms with the Frame length buttons (the game runs both; see the Physics page). Units are px and seconds; a tile is 32 px.
 
 | | |
 |---|---|
@@ -43,7 +43,7 @@ The movement follows the reverse-engineered Android 5.59 client: one step per fr
 **Gear:** double jump (wings), parasol, 3 speed items, high jump item, and one water item: a Jet Ski or floaties.
 
 - **Antigravity field, conveyor, water:** act on the centre point of your box, not its edges. Field: gravity ×0.375, you can jump while falling. Conveyor: run set to top speed, rightwards. Water: gravity and fall cap ×0.3 (300 px/s², 120 px/s), run 125 px/s, jump ×0.6 (270 px/s).
-- **Changing mods:** putting an item on or taking one off takes away the stored double jump; in the air it stays gone until you land. A Gear button does that while you play. In the game a change can be sent once every 333 ms and lands when the server answers. See the Mechanics page.
+- **Changing mods:** putting an item on or taking one off takes away the stored double jump; in the air it stays gone until you land. A Gear button does that while you play. In the game a change can be sent once every 333 ms and lands when the server answers. See the Physics page.
 - **Water items:** a Jet Ski (the Jet Ski or the Golden Jet Ski) stops gravity and the fall cap from the frame you enter the water (you rest at the surface and can jump any time), with no time limit, until you touch ground or change any item; then it takes a new entry to float again. The game's 3-second float items and the Fishing Dinghy aren't modelled. Floaties cut sinking to 40 px/s and push up at 320 px/s², give rising a 12 px/s² push and cap upward speed at 120 px/s. One at a time.
 - **Waterfall:** not solid and not water. It only refuses upward steps that would leave your box in it, so it's a ceiling from below and you can't rise inside it.
 - **Pinball bumper:** solid; a touch sets your speed to 500 px/s straight away from its centre, takes you off the ground, makes you slippery until you land, and clears the held-jump state until the next press. (The bouncy turret, a platform, and the fire-flag bumper aren't modelled.)
