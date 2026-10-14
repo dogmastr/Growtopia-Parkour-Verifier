@@ -200,6 +200,42 @@
           <li>It compares this frame's own time with the frame time. If it was 1, 2, 3 or 4 ms longer, that leftover goes into the next frame. Any other difference is dropped.</li>
         </ol>
 
+        <h3>How high a jump goes at each frame rate</h3>
+        <p><b>Where this comes from:</b> worked out frame by frame from the rules on this page. At 16 ms it gives the page's own numbers: 104, 325, 123 and 67 px. High Jump uses the measured gravity of about 713.</p>
+        <p><b>In the verifier:</b> not yet. It only steps at 16 or 17 ms.</p>
+        <p>The lower the frame rate, the higher a jump goes. Some jumps gain a whole tile:</p>
+        <ul>
+          <li>High Jump reaches 5 tiles from 12 fps (81 ms frames).</li>
+          <li>A jump started in water reaches 4 tiles from 19 fps (52 ms).</li>
+          <li>The Antigravity Generator reaches 9 tiles from 12 fps (82 ms).</li>
+          <li>A trampoline bounce reaches 11 tiles from 12 fps (81 ms).</li>
+          <li>A lava bounce reaches 3 tiles from 12 fps (83 ms).</li>
+          <li>A plain held jump never reaches 4 tiles. It tops out at 124 px, 4 px short.</li>
+        </ul>
+        <p>How it is worked out:</p>
+        <ul>
+          <li>Gravity is applied before the move.</li>
+          <li>A jump or a bounce sets its speed before that frame's move.</li>
+          <li>Each move is whole pixels (<code>trunc(v + 0.5)</code>), and the leftover is carried to the next frame.</li>
+          <li>The frame time is whole milliseconds, capped at 100.</li>
+        </ul>
+        <p>A longer frame moves you a whole frame at full speed before gravity catches up, so the top comes out higher.</p>
+
+        <figure class="figure fps" id="fps-figure">
+          <div class="panels" id="fps-panels"></div>
+          <div class="tip" id="fps-tip" hidden></div>
+          <figcaption>Across: frames per second (62.5 fps is 16 ms frames). Up: the highest point of the jump, in px. Grey lines mark whole tiles (32 px). The upright line is 10 fps: below it every frame is cut to 100 ms.</figcaption>
+          <details>
+            <summary>Show as a table</summary>
+            <div class="tablewrap"><table id="fps-table"></table></div>
+          </details>
+        </figure>
+
+        <ul>
+          <li>Below 10 fps the lines are flat. The game cuts each frame to 100 ms, so it just plays in slow motion: same height, more real time per frame.</li>
+          <li>The lines go up in steps because frames are whole milliseconds and moves are whole pixels.</li>
+        </ul>
+      
         <h3>Why 63 fps appears after the game has been open a long time</h3>
         <p><b>Where this comes from:</b> a likely explanation, not confirmed. It is read from the public Proton SDK engine source, which Growtopia is built on (<code>shared/win/app/main.cpp</code> and <code>shared/win/WinUtils.cpp</code>).</p>
         <ul>

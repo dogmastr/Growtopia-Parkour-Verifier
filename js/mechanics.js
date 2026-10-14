@@ -1,4 +1,4 @@
-/* ===== mechanics.js: the Mechanics page's tab bar, and the Bounce cancel numbers =====
+/* ===== mechanics.js: the Mechanics page's tab bar, the Bounce cancel numbers, and the jump-height-by-frame-rate figure =====
    The numbers and the chart are worked out by core.js, the same physics the verifier and its route checker run,
    so what this page says about a bounce is what the checker assumes. */
 (function () {
@@ -166,4 +166,105 @@
     body.appendChild(tr);
   }
   table.appendChild(body);
+
+  /* ---------- jump height by frame rate: six small panels, one line each ---------- */
+  // The highest point (px) of each jump with frames of 16, 17, ..., 100 whole ms, worked out frame by frame.
+  // At x fps a frame is 1000 / x ms. Below 10 fps every frame still counts as 100 ms, so the line stays at the last value.
+  var FPS = [
+    { name: "Plain held jump", px: [104,104,104,105,105,105,105,105,106,106,106,106,107,107,107,107,107,108,108,108,109,109,109,109,109,109,110,110,110,110,111,111,111,111,112,112,112,113,113,113,113,113,114,114,114,114,115,115,115,115,115,116,116,116,117,117,117,117,117,117,118,118,118,119,119,119,120,120,120,120,120,120,120,120,120,121,121,122,122,123,123,123,123,124,124] },
+    { name: "High Jump", px: [145,145,145,145,146,146,146,146,146,147,147,147,147,148,148,148,148,148,149,149,149,149,150,150,150,150,150,151,151,151,152,152,152,152,152,153,153,153,153,154,154,154,154,155,155,155,155,155,156,156,156,156,157,157,157,157,158,158,158,158,159,159,159,159,159,160,160,160,161,161,161,161,161,161,161,162,162,162,163,163,163,164,164,164,164] },
+    { name: "Jump started in water", px: [123,123,123,123,123,123,123,124,124,124,124,124,124,124,125,125,125,125,125,125,125,126,126,126,126,126,126,126,127,127,127,127,127,127,127,127,128,128,128,128,128,128,128,129,129,129,129,129,129,129,130,130,130,130,130,130,130,131,131,131,131,131,131,131,131,132,132,132,132,132,132,133,133,133,133,133,133,133,134,134,134,134,134,134,134] },
+    { name: "Antigravity Generator world", px: [273,273,273,273,274,274,274,274,274,275,275,275,275,276,276,276,276,276,277,277,277,277,278,278,278,278,279,279,279,279,279,280,280,280,280,281,281,281,281,281,282,282,282,282,282,283,283,283,284,284,284,284,284,285,285,285,285,286,286,286,286,287,287,287,287,287,288,288,288,288,288,289,289,289,290,290,290,290,290,291,291,291,291,291,292] },
+    { name: "Trampoline bounce, held", px: [325,326,326,327,327,327,328,328,329,329,329,330,330,331,331,331,332,332,333,333,334,334,334,335,335,336,336,336,337,337,338,338,338,339,339,340,340,340,341,341,342,342,342,343,343,344,344,345,345,345,346,346,347,347,348,348,348,348,349,350,350,351,351,351,351,352,352,353,353,354,354,354,355,355,355,356,357,357,358,358,358,359,359,359,359] },
+    { name: "Lava bounce", px: [67,67,67,68,68,69,69,69,70,70,71,71,72,72,72,73,73,74,74,75,75,75,75,76,77,77,78,78,79,79,80,80,80,80,80,80,81,82,83,83,84,85,85,86,86,87,87,88,88,88,89,89,89,90,90,90,90,90,90,90,90,91,92,93,93,94,95,96,96,97,98,98,99,100,100,101,102,102,103,104,104,105,105,106,107] }
+  ];
+  var fpsHost = document.getElementById("fps-panels"), fpsTip = document.getElementById("fps-tip");
+  var fpsFig = document.getElementById("fps-figure"), fpsTable = document.getElementById("fps-table");
+  if (!fpsHost) return;
+  // Each panel is drawn at its real width (and again when that changes), so its text stays 11 px on a phone and on a wide screen.
+  var FH = 170, FM = { l: 34, r: 50, t: 20, b: 22 };
+  function fpsPanel(s) {
+    var last = s.px[s.px.length - 1], pts = [];
+    for (var x = 1; x < 10; x++) pts.push({ x: x, v: last });
+    for (var k = s.px.length - 1; k >= 0; k--) pts.push({ x: 1000 / (16 + k), v: s.px[k] });
+    var lo = Math.min.apply(null, s.px) - 5, hi = Math.max.apply(null, s.px) + 6;
+    var box = document.createElement("div"), h = document.createElement("h4"), sub = document.createElement("p");
+    h.textContent = s.name; sub.className = "sub"; sub.textContent = s.px[0] + " px at 62.5 fps, " + last + " px at 10 fps and below";
+    box.appendChild(h); box.appendChild(sub); fpsHost.appendChild(box);
+    var svg = el("svg", { role: "img", tabindex: "0", "aria-label": "Line chart of the highest point of a " + s.name.toLowerCase() +
+      " against frames per second: " + s.px[0] + " px at 62.5 fps, rising in steps to " + last + " px at 10 fps, and flat below that. The table view has the numbers." }, box);
+    var W = 0, cur = -1, cross, dot;
+    function X(x) { return FM.l + (W - FM.l - FM.r) * (x - 1) / 62; }
+    function Y(v) { return FH - FM.b - (FH - FM.t - FM.b) * (v - lo) / (hi - lo); }
+    function text(attrs, str) { var t = el("text", attrs, svg); t.textContent = str; }
+    function draw() {
+      W = box.clientWidth; if (!W) return;   // a hidden tab has no width; it draws when it is shown
+      off(); svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + FH);
+      var v;
+      for (v = Math.ceil(lo / 32) * 32; v <= hi; v += 32) {   // whole tiles
+        el("line", { class: "grid", x1: FM.l, x2: W - FM.r, y1: Y(v), y2: Y(v) }, svg);
+        text({ x: W - FM.r + 6, y: Y(v) + 4 }, v / 32 + " tiles");
+      }
+      el("line", { class: "grid", x1: X(10), x2: X(10), y1: FM.t, y2: FH - FM.b }, svg);
+      text({ x: X(10), y: FM.t - 7, "text-anchor": "middle" }, "100 ms cap");
+      el("line", { class: "axis", x1: FM.l, x2: W - FM.r, y1: FH - FM.b, y2: FH - FM.b }, svg);
+      [1, 10, 20, 30, 40, 50, 63].forEach(function (x) { text({ x: X(x), y: FH - 6, "text-anchor": "middle" }, x); });
+      for (v = Math.ceil(lo / 10) * 10; v <= hi; v += 10) text({ x: FM.l - 6, y: Y(v) + 4, "text-anchor": "end" }, v);
+      el("path", { class: "val", d: pts.map(function (p, i) { return (i ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.v).toFixed(1); }).join("") }, svg);
+      cross = el("line", { class: "cross", y1: FM.t, y2: FH - FM.b, visibility: "hidden" }, svg);
+      dot = el("circle", { class: "dot", r: 4, visibility: "hidden" }, svg);
+    }
+    function at(i) {
+      i = Math.max(0, Math.min(pts.length - 1, i)); cur = i;
+      var p = pts[i];
+      cross.setAttribute("x1", X(p.x)); cross.setAttribute("x2", X(p.x)); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", X(p.x)); dot.setAttribute("cy", Y(p.v)); dot.setAttribute("visibility", "visible");
+      fpsTip.replaceChildren();
+      var head = document.createElement("b"), row = document.createElement("div"), val = document.createElement("strong");
+      head.textContent = +p.x.toFixed(1) + " fps (" + Math.round(1000 / p.x) + " ms frames)";
+      val.textContent = p.v + " px, " + Math.floor(p.v / 32) + " whole tiles";
+      row.appendChild(val); fpsTip.appendChild(head); fpsTip.appendChild(row);
+      if (p.x < 10) { var capped = document.createElement("div"); capped.textContent = "physics step capped at 100 ms"; fpsTip.appendChild(capped); }
+      fpsTip.hidden = false;
+      var r = svg.getBoundingClientRect(), host = fpsFig.getBoundingClientRect();
+      var px = r.left - host.left + X(p.x) * r.width / W;
+      var left = px + 14; if (left + fpsTip.offsetWidth > host.width - 8) left = px - fpsTip.offsetWidth - 14;
+      fpsTip.style.left = Math.max(8, left) + "px"; fpsTip.style.top = (r.top - host.top + 8) + "px";
+    }
+    function off() {
+      if (cur < 0) return;
+      cur = -1; fpsTip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden");
+    }
+    svg.addEventListener("pointermove", function (e) {
+      var r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * W, best = 0;
+      pts.forEach(function (p, i) { if (Math.abs(X(p.x) - vx) < Math.abs(X(pts[best].x) - vx)) best = i; });
+      at(best);
+    });
+    svg.addEventListener("pointerleave", off);
+    svg.addEventListener("blur", off);
+    svg.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") { at(cur < 0 ? 0 : cur + 1); e.preventDefault(); }
+      else if (e.key === "ArrowLeft") { at(cur < 0 ? 0 : cur - 1); e.preventDefault(); }
+      else if (e.key === "Escape") off();
+    });
+    return draw;
+  }
+  var fpsDraws = FPS.map(fpsPanel);
+  new ResizeObserver(function () { fpsDraws.forEach(function (d) { d(); }); }).observe(fpsHost);
+
+  // the table twin: a few frame rates per setup
+  var COLS = [[16, "62.5 fps (16 ms)"], [33, "30 fps (33 ms)"], [50, "20 fps (50 ms)"], [67, "15 fps (67 ms)"], [83, "12 fps (83 ms)"], [100, "10 fps and below (100 ms)"]];
+  var fhead = document.createElement("thead"), fhr = document.createElement("tr");
+  ["Setup"].concat(COLS.map(function (c) { return c[1]; })).forEach(function (t, k) {
+    var th = document.createElement("th"); th.textContent = t; if (k) th.className = "num"; fhr.appendChild(th);
+  });
+  fhead.appendChild(fhr); fpsTable.appendChild(fhead);
+  var fbody = document.createElement("tbody");
+  FPS.forEach(function (s) {
+    var tr = document.createElement("tr"), c0 = document.createElement("td");
+    c0.textContent = s.name; tr.appendChild(c0);
+    COLS.forEach(function (c) { var td = document.createElement("td"); td.className = "num"; td.textContent = s.px[c[0] - 16] + " px"; tr.appendChild(td); });
+    fbody.appendChild(tr);
+  });
+  fpsTable.appendChild(fbody);
 })();
